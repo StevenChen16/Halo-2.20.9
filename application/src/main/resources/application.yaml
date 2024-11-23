@@ -35,7 +35,7 @@ spring:
     redis:
       time-to-live: 3600s
       cache-null-values: true
-      key-prefix: halo:
+      key-prefix: "halo:"
       use-key-prefix: true
 
 halo:
