@@ -33,6 +33,9 @@
                 "bradlc.vscode-tailwindcss"
             ]
         }
+    },
+    "tasks": {
+      "build": "gradlew build -x check"
     }
 
     // Use 'forwardPorts' to make a list of ports inside the container available locally.
