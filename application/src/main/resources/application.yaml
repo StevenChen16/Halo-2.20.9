@@ -31,9 +31,12 @@ spring:
     reactive:
       maxChunkSize: 8KB
   cache:
-    type: caffeine
-    caffeine:
-      spec: expireAfterAccess=1h, maximumSize=10000
+    type: redis
+    redis:
+      time-to-live: 3600s
+      cache-null-values: true
+      key-prefix: halo:
+      use-key-prefix: true
 
 halo:
   work-dir: ${user.home}/.halo2

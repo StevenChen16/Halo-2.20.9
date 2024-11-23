@@ -85,6 +85,7 @@ dependencies {
     // webjars
     runtimeOnly 'org.webjars.npm:jsencrypt:3.3.2'
     runtimeOnly 'org.webjars.npm:normalize.css:8.0.1'
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 }
 
 tasks.register('createChecksums', Checksum) {
