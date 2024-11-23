@@ -37,6 +37,10 @@ spring:
       cache-null-values: true
       key-prefix: "halo:"
       use-key-prefix: true
+  redis:
+    host: 170.106.99.35     # 你的 Redis 服务器地址
+    port: 6379
+    # password: your-password  # 如果设置了密码
 
 halo:
   work-dir: ${user.home}/.halo2
