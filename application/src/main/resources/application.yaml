@@ -38,9 +38,9 @@ spring:
       key-prefix: "halo:"
       use-key-prefix: true
   redis:
-    host: 170.106.99.35     # 你的 Redis 服务器地址
-    port: 6379
-    # password: your-password  # 如果设置了密码
+    host: ${spring.redis.host}
+    port: ${spring.redis.port}
+    password: ${spring.redis.password}
 
 halo:
   work-dir: ${user.home}/.halo2
@@ -116,3 +116,9 @@ resilience4j.ratelimiter:
       limitForPeriod: 10
       limitRefreshPeriod: 1m
       timeoutDuration: 0s
+
+spring:
+  redis:
+    host: 170.106.99.35
+    port: 6379
+    password: your-password
