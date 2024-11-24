@@ -14,6 +14,7 @@ import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
+import org.springframework.beans.factory.annotation.Value;
 import run.halo.app.infra.properties.HaloProperties;
 import run.halo.app.search.lucene.LuceneSearchEngine;
 
@@ -21,6 +22,15 @@ import run.halo.app.search.lucene.LuceneSearchEngine;
 @Configuration(proxyBeanMethods = false)
 @EnableAsync
 public class HaloConfiguration {
+
+    @Value("${spring.redis.host}")
+    private String redisHost;
+
+    @Value("${spring.redis.port}")
+    private int redisPort;
+
+    @Value("${spring.redis.password}")
+    private String redisPassword;
 
     @Bean
     Jackson2ObjectMapperBuilderCustomizer objectMapperCustomizer() {
