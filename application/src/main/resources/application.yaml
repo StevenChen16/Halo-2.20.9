@@ -117,8 +117,3 @@ resilience4j.ratelimiter:
       limitRefreshPeriod: 1m
       timeoutDuration: 0s
 
-spring:
-  redis:
-    host: 170.106.99.35
-    port: 6379
-    password: your-password
