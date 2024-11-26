@@ -25,7 +25,6 @@ import run.halo.app.search.lucene.LuceneSearchEngine;
 @EnableCaching
 @Configuration(proxyBeanMethods = false)
 @EnableAsync
-@Data
 public class HaloConfiguration {
 
     private static final Logger log = LoggerFactory.getLogger(HaloConfiguration.class);
