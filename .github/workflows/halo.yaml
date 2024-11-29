@@ -29,6 +29,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
       - name: Setup Environment
         uses: ./.github/actions/setup-env
       - name: Check Halo
