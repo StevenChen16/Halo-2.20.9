@@ -53,6 +53,8 @@ jobs:
           version=${{ github.event.release.tag_name }}
           version=${version#v}
           sed -i "s/version=.*-SNAPSHOT$/version=$version/1" gradle.properties
+      - name: Permission
+        chmod +x ./gradlew
       - name: Build Halo
         run: ./gradlew clean && ./gradlew downloadPluginPresets && ./gradlew build -x check
       - name: Upload Artifacts
