@@ -116,4 +116,36 @@ public class PostQuery extends SortableRequest {
                 .implementation(String.class)
                 .required(false));
     }
+
+    @Override
+    public String toString() {
+        StringBuilder key = new StringBuilder();
+        
+        // 添加基本查询参数
+        key.append("page=").append(getPage())
+        .append("&size=").append(getSize());
+        
+        // 添加排序信息
+        Optional.ofNullable(getSort())
+            .ifPresent(sort -> key.append("&sort=").append(sort));
+        
+        // 添加标签选择器
+        Optional.ofNullable(getLabelSelector())
+            .ifPresent(labels -> key.append("&labelSelector=").append(labels));
+        
+        // 添加可选参数
+        Optional.ofNullable(getPublishPhase())
+            .ifPresent(phase -> key.append("&publishPhase=").append(phase));
+        
+        Optional.ofNullable(getCategoryWithChildren())
+            .ifPresent(category -> key.append("&category=").append(category));
+        
+        Optional.ofNullable(getKeyword())
+            .ifPresent(kw -> key.append("&keyword=").append(kw));
+        
+        Optional.ofNullable(username)
+            .ifPresent(user -> key.append("&username=").append(user));
+
+        return key.toString();
+    }
 }
