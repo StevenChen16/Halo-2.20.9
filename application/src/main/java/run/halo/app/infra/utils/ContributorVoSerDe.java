@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import com.fasterxml.jackson.databind.ser.std.StdSerializer;
 import run.halo.app.theme.finders.vo.ContributorVo;
+import java.io.IOException;
 
 public class ContributorVoSerDe {
     
