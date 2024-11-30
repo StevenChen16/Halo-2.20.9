@@ -262,15 +262,7 @@ public class PostServiceImpl extends AbstractContentService implements PostServi
                 });
         }
         
-        // 添加doOnSuccess处理器来发布更新事件
-        return updateMono.doOnSuccess(updatedPost -> {
-            try {
-                redisTemplate.convertAndSend(POST_UPDATE_CHANNEL, "update");
-                log.info("Published post update event for post: {}", updatedPost.getMetadata().getName());
-            } catch (Exception e) {
-                log.error("Failed to publish post update event", e);
-            }
-        });
+        return updateMono;        
     }
 
     @Override

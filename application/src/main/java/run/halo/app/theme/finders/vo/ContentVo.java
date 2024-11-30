@@ -14,9 +14,9 @@ import lombok.AllArgsConstructor;
 @AllArgsConstructor
 public class ContentVo {
 
-    String raw;
+    String raw = "";
 
-    String content;
+    String content = "";
 
     /**
      * Empty content object.
