@@ -21,6 +21,9 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
 import org.springframework.beans.factory.annotation.Value;
 import run.halo.app.infra.properties.HaloProperties;
 import run.halo.app.search.lucene.LuceneSearchEngine;
+import org.springframework.data.redis.cache.RedisCacheConfiguration;
+import org.springframework.data.redis.serializer.RedisSerializationContext;
+import java.time.Duration;
 
 @EnableCaching
 @Configuration(proxyBeanMethods = false)
@@ -84,6 +87,19 @@ public class HaloConfiguration {
 
     @Bean
     public RedisCacheManager cacheManager(RedisConnectionFactory redisConnectionFactory) {
-        return RedisCacheManager.builder(redisConnectionFactory).build();
+        // 创建 Redis 缓存配置
+        RedisCacheConfiguration config = RedisCacheConfiguration.defaultCacheConfig()
+            // 使用 Jackson2JsonRedisSerializer 作为值序列化器
+            .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(
+                new GenericJackson2JsonRedisSerializer()))
+            // 使用 StringRedisSerializer 作为键序列化器
+            .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(
+                new StringRedisSerializer()))
+            // 设置缓存过期时间（可选）
+            .entryTtl(Duration.ofHours(1));
+    
+        return RedisCacheManager.builder(redisConnectionFactory)
+            .cacheDefaults(config)
+            .build();
     }
 }
