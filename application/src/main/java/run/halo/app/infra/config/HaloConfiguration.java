@@ -6,8 +6,10 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.jackson.Jackson2ObjectMapperBuilderCustomizer;
@@ -85,29 +87,54 @@ public class HaloConfiguration {
     @Bean
     public GenericJackson2JsonRedisSerializer redisSerializer() {
         ObjectMapper mapper = new ObjectMapper();
-        // 基础配置
         mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
         mapper.enable(MapperFeature.ACCEPT_CASE_INSENSITIVE_ENUMS);
         
-        // Java 8+ 时间模块支持
         mapper.registerModule(new JavaTimeModule());
         
-        // 反序列化配置
         mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
         mapper.configure(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY, true);
         mapper.configure(DeserializationFeature.READ_UNKNOWN_ENUM_VALUES_AS_NULL, true);
-        mapper.configure(DeserializationFeature.READ_UNKNOWN_ENUM_VALUES_AS_NULL, true);
         mapper.configure(DeserializationFeature.ACCEPT_EMPTY_STRING_AS_NULL_OBJECT, true);
         mapper.configure(DeserializationFeature.FAIL_ON_MISSING_CREATOR_PROPERTIES, false);
+        mapper.configure(DeserializationFeature.FAIL_ON_INVALID_SUBTYPE, false);
+        mapper.configure(DeserializationFeature.FAIL_ON_MISSING_EXTERNAL_TYPE_ID_PROPERTY, false);
+        mapper.configure(DeserializationFeature.FAIL_ON_UNRESOLVED_OBJECT_IDS, false);
         
-        // 类型处理配置
         mapper.activateDefaultTyping(
             mapper.getPolymorphicTypeValidator(),
-            ObjectMapper.DefaultTyping.NON_FINAL, 
+            ObjectMapper.DefaultTyping.NON_FINAL,
             JsonTypeInfo.As.PROPERTY
         );
         
         return new GenericJackson2JsonRedisSerializer(mapper);
+    }
+
+    @Bean
+    public InitializingBean clearCache(RedisConnectionFactory redisConnectionFactory) {
+        return () -> {
+            RedisTemplate<String, Object> template = new RedisTemplate<>();
+            template.setConnectionFactory(redisConnectionFactory);
+            template.setKeySerializer(new StringRedisSerializer());
+            
+            try {
+                // 清理插件设置缓存
+                Set<String> pluginKeys = template.keys("plugin_setting*");
+                if (pluginKeys != null && !pluginKeys.isEmpty()) {
+                    template.delete(pluginKeys);
+                    log.info("Cleared plugin setting cache");
+                }
+                
+                // 清理其他损坏的缓存
+                Set<String> damagedKeys = template.keys("*¬*");
+                if (damagedKeys != null && !damagedKeys.isEmpty()) {
+                    template.delete(damagedKeys);
+                    log.info("Cleared damaged cache entries");
+                }
+            } catch (Exception e) {
+                log.warn("Failed to clear cache: {}", e.getMessage());
+            }
+        };
     }
     
     @Bean
@@ -123,11 +150,9 @@ public class HaloConfiguration {
                     new StringRedisSerializer()
                 )
             )
-            .entryTtl(Duration.ofHours(1));
-            // disableCachingNullValues() 不接受参数，如果要允许缓存 null 值，就不要调用这个方法
-            // .disableCachingNullValues(false); // 错误的用法
+            .entryTtl(Duration.ofHours(1))
+            .computePrefixWith(cacheName -> "halo:" + cacheName + ":");
     
-        // 不同类型缓存配置
         Map<String, RedisCacheConfiguration> cacheConfigurations = new HashMap<>();
         
         cacheConfigurations.put("posts-list", 
@@ -139,7 +164,7 @@ public class HaloConfiguration {
         cacheConfigurations.put("post-snapshots", 
             defaultConfig.entryTtl(Duration.ofHours(2)));
         cacheConfigurations.put("comments-list", 
-            defaultConfig.entryTtl(Duration.ofMinutes(30)));  // 评论列表缓存30分钟
+            defaultConfig.entryTtl(Duration.ofMinutes(30)));
     
         return RedisCacheManager.builder(redisConnectionFactory)
             .cacheDefaults(defaultConfig)
@@ -153,7 +178,6 @@ public class HaloConfiguration {
         RedisTemplate<String, Object> template = new RedisTemplate<>();
         template.setConnectionFactory(redisConnectionFactory);
         
-        // 使用相同的序列化器
         GenericJackson2JsonRedisSerializer serializer = redisSerializer();
         
         template.setKeySerializer(new StringRedisSerializer());
@@ -164,4 +188,3 @@ public class HaloConfiguration {
         return template;
     }
 }
-
