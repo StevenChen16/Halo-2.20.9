@@ -3,34 +3,29 @@ package run.halo.app.infra.config;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.MapperFeature;
 import java.io.IOException;
+import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.jackson.Jackson2ObjectMapperBuilderCustomizer;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.scheduling.annotation.EnableAsync;
+import org.springframework.data.redis.cache.RedisCacheConfiguration;
 import org.springframework.data.redis.cache.RedisCacheManager;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
+import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.EnableAsync;
 import run.halo.app.infra.properties.HaloProperties;
 import run.halo.app.search.lucene.LuceneSearchEngine;
-import org.springframework.data.redis.cache.RedisCacheConfiguration;
-import org.springframework.data.redis.serializer.RedisSerializationContext;
-import java.time.Duration;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.jsontype.JsonTypeInfo;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import java.util.Map;
-import java.util.HashMap;
-
 
 @EnableCaching
 @Configuration(proxyBeanMethods = false)
@@ -104,7 +99,7 @@ public class HaloConfiguration {
                 new StringRedisSerializer()))
             // 默认过期时间1小时
             .entryTtl(Duration.ofHours(1));
-    
+
         // 创建不同缓存配置
         Map<String, RedisCacheConfiguration> cacheConfigurations = new HashMap<>();
         
@@ -117,7 +112,7 @@ public class HaloConfiguration {
             defaultConfig.entryTtl(Duration.ofHours(2)));
         cacheConfigurations.put("post-snapshots", 
             defaultConfig.entryTtl(Duration.ofHours(2)));
-    
+
         return RedisCacheManager.builder(redisConnectionFactory)
             .cacheDefaults(defaultConfig)
             .withInitialCacheConfigurations(cacheConfigurations)
