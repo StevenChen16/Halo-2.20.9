@@ -13,7 +13,6 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import javax.annotation.PostConstruct;
-import lombok.AllArgsConstructor;
 import lombok.Data;
 import org.apache.commons.lang3.BooleanUtils;
 import org.apache.commons.lang3.ObjectUtils;
@@ -56,15 +55,11 @@ import run.halo.app.theme.finders.vo.PostArchiveYearMonthVo;
 import run.halo.app.theme.finders.vo.PostVo;
 import run.halo.app.theme.router.ReactiveQueryPostPredicateResolver;
 
-/**
- * A finder for {@link Post}.
- *
- * @author guqing
- * @since 2.0.0
- */
 @Finder("postFinder")
 public class PostFinderImpl implements PostFinder {
     private static final Logger log = LoggerFactory.getLogger(PostFinderImpl.class);
+    private static final String POST_CACHE_PREFIX = "halo:post:list:";
+    private static final String POST_UPDATE_CHANNEL = "halo:post:update";
 
     private final ReactiveExtensionClient client;
     private final PostPublicQueryService postPublicQueryService;
@@ -72,9 +67,6 @@ public class PostFinderImpl implements PostFinder {
     private final CategoryService categoryService;
     private final RedisTemplate<String, Object> redisTemplate;
     private final RedisMessageListenerContainer redisMessageListenerContainer;
-    
-    private static final String POST_CACHE_PREFIX = "halo:post:list:";
-    private static final String POST_UPDATE_CHANNEL = "halo:post:update";
 
     public PostFinderImpl(ReactiveExtensionClient client,
                          PostPublicQueryService postPublicQueryService,
@@ -149,12 +141,6 @@ public class PostFinderImpl implements PostFinder {
         return new LinkNavigation(null, target, null);
     }
 
-    static Sort archiveSort() {
-        return Sort.by(Sort.Order.desc("spec.publishTime"),
-            Sort.Order.desc("metadata.name")
-        );
-    }
-
     private Mono<PostVo> fetchByName(String name) {
         if (StringUtils.isBlank(name)) {
             return Mono.empty();
@@ -167,7 +153,6 @@ public class PostFinderImpl implements PostFinder {
     public Mono<NavigationPostVo> cursor(String currentName) {
         return postPredicateResolver.getListOptions()
             .map(listOptions -> ListOptions.builder(listOptions)
-                // Exclude hidden posts
                 .andQuery(notHiddenPostQuery())
                 .build()
             )
@@ -254,10 +239,6 @@ public class PostFinderImpl implements PostFinder {
         });
     }
 
-    private PageRequestImpl getPageRequest(Integer page, Integer size) {
-        return PageRequestImpl.of(pageNullSafe(page), sizeNullSafe(size), defaultSort());
-    }
-
     @Override
     public Mono<ListResult<ListedPostVo>> listByCategory(Integer page, Integer size,
         String categoryName) {
@@ -270,15 +251,6 @@ public class PostFinderImpl implements PostFinder {
                 listOptions.setFieldSelector(FieldSelector.of(fieldQuery));
                 return postPublicQueryService.list(listOptions, getPageRequest(page, size));
             });
-    }
-
-    private Flux<Category> listChildrenCategories(String categoryName) {
-        if (StringUtils.isBlank(categoryName)) {
-            return client.listAll(Category.class, new ListOptions(),
-                Sort.by(Sort.Order.asc("metadata.creationTimestamp"),
-                    Sort.Order.desc("metadata.name")));
-        }
-        return categoryService.listChildren(categoryName);
     }
 
     @Override
@@ -335,11 +307,9 @@ public class PostFinderImpl implements PostFinder {
                 List<PostArchiveVo> postArchives = yearPosts.entrySet().stream()
                     .map(entry -> {
                         String key = entry.getKey();
-                        // archives by month
                         Map<String, List<ListedPostVo>> monthPosts = entry.getValue().stream()
                             .collect(Collectors.groupingBy(
                                 post -> HaloUtils.getMonthText(post.getSpec().getPublishTime())));
-                        // convert to archive year month value objects
                         List<PostArchiveYearMonthVo> monthArchives = monthPosts.entrySet()
                             .stream()
                             .map(monthEntry -> PostArchiveYearMonthVo.builder()
@@ -347,8 +317,7 @@ public class PostFinderImpl implements PostFinder {
                                 .month(monthEntry.getKey())
                                 .build()
                             )
-                            .sorted(
-                                Comparator.comparing(PostArchiveYearMonthVo::getMonth).reversed())
+                            .sorted(Comparator.comparing(PostArchiveYearMonthVo::getMonth).reversed())
                             .toList();
                         return PostArchiveVo.builder()
                             .year(String.valueOf(key))
@@ -370,8 +339,36 @@ public class PostFinderImpl implements PostFinder {
             .flatMapSequential(postPublicQueryService::convertToListedVo);
     }
 
+    public void publishPostUpdateEvent() {
+        try {
+            redisTemplate.convertAndSend(POST_UPDATE_CHANNEL, "update");
+            log.info("Published post update event");
+        } catch (Exception e) {
+            log.error("Failed to publish post update event", e);
+        }
+    }
+
+    private Flux<Category> listChildrenCategories(String categoryName) {
+        if (StringUtils.isBlank(categoryName)) {
+            return client.listAll(Category.class, new ListOptions(),
+                Sort.by(Sort.Order.asc("metadata.creationTimestamp"),
+                    Sort.Order.desc("metadata.name")));
+        }
+        return categoryService.listChildren(categoryName);
+    }
+
+    private PageRequestImpl getPageRequest(Integer page, Integer size) {
+        return PageRequestImpl.of(pageNullSafe(page), sizeNullSafe(size), defaultSort());
+    }
+
     private String generateCacheKey(Map<String, Object> params) {
         return params != null ? params.toString().replaceAll("[{}\\s]", "") : "default";
+    }
+
+    static Sort archiveSort() {
+        return Sort.by(Sort.Order.desc("spec.publishTime"),
+            Sort.Order.desc("metadata.name")
+        );
     }
 
     static int pageNullSafe(Integer page) {
@@ -419,49 +416,6 @@ public class PostFinderImpl implements PostFinder {
         public PageRequest toPageRequest() {
             return PageRequestImpl.of(pageNullSafe(getPage()),
                 sizeNullSafe(getSize()), SortUtils.resolve(sort).and(defaultSort()));
-        }
-    }
-
-    @Override
-    public Mono<ListResult<ListedPostVo>> list(Integer page, Integer size) {
-        String cacheKey = POST_CACHE_PREFIX + "page:" + page + ":size:" + size;
-        
-        Object cachedResult = redisTemplate.opsForValue().get(cacheKey);
-        if (cachedResult != null) {
-            return Mono.just((ListResult<ListedPostVo>) cachedResult);
-        }
-
-        return Mono.defer(() -> {
-            var listOptions = ListOptions.builder()
-                .fieldQuery(notHiddenPostQuery())
-                .build();
-            return postPublicQueryService.list(listOptions, getPageRequest(page, size))
-                .doOnNext(result -> {
-                    redisTemplate.opsForValue().set(cacheKey, result, 30, TimeUnit.MINUTES);
-                    log.debug("Cached post list for page {} with key: {}", page, cacheKey);
-                });
-        });
-    }
-
-    private void clearPostCache() {
-        try {
-            String pattern = POST_CACHE_PREFIX + "*";
-            Set<String> keys = redisTemplate.keys(pattern);
-            if (keys != null && !keys.isEmpty()) {
-                redisTemplate.delete(keys);
-                log.info("Manually cleared post cache, cleared keys: {}", keys.size());
-            }
-        } catch (Exception e) {
-            log.error("Failed to clear post cache", e);
-        }
-    }
-
-    public void publishPostUpdateEvent() {
-        try {
-            redisTemplate.convertAndSend(POST_UPDATE_CHANNEL, "update");
-            log.info("Published post update event");
-        } catch (Exception e) {
-            log.error("Failed to publish post update event", e);
         }
     }
 }
