@@ -1,5 +1,7 @@
 package run.halo.app.content;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
 import lombok.Data;
 import org.apache.commons.lang3.StringUtils;
@@ -17,6 +19,19 @@ public class ContentWrapper {
     private String raw;
     private String content;
     private String rawType;
+
+    // 添加全参数构造函数并标注 @JsonCreator
+    @JsonCreator
+    public ContentWrapper(
+        @JsonProperty("snapshotName") String snapshotName,
+        @JsonProperty("raw") String raw,
+        @JsonProperty("content") String content,
+        @JsonProperty("rawType") String rawType) {
+        this.snapshotName = snapshotName;
+        this.raw = raw;
+        this.content = content;
+        this.rawType = rawType;
+    }
 
     public static ContentWrapper patchSnapshot(Snapshot patchSnapshot, Snapshot baseSnapshot) {
         Assert.notNull(baseSnapshot, "The baseSnapshot must not be null.");
