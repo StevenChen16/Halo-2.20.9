@@ -90,7 +90,7 @@ public class SiteSettingVo {
         return JsonUtils.jsonToObject(json, type);
     }
 
-    Value
+    @Value
     @Builder
     public static class PostSetting {
         Integer postPageSize;
