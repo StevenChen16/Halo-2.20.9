@@ -3,6 +3,8 @@ package run.halo.app.theme.finders.vo;
 import lombok.Builder;
 import lombok.ToString;
 import lombok.Value;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
 import run.halo.app.core.extension.User;
 import run.halo.app.extension.MetadataOperator;
 
@@ -15,6 +17,8 @@ import run.halo.app.extension.MetadataOperator;
 @Value
 @ToString
 @Builder
+@NoArgsConstructor(force = true)
+@AllArgsConstructor
 public class ContributorVo implements ExtensionVoOperator {
 
     String name;
