@@ -34,6 +34,9 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.springframework.data.redis.listener.RedisMessageListenerContainer;
 import org.springframework.data.redis.listener.ChannelTopic;
+import com.fasterxml.jackson.annotation.JsonAutoDetect;
+import com.fasterxml.jackson.annotation.PropertyAccessor;
+import com.fasterxml.jackson.databind.SerializationFeature;
 
 @EnableCaching
 @Configuration(proxyBeanMethods = false)
@@ -102,6 +105,12 @@ public class HaloConfiguration {
         mapper.configure(DeserializationFeature.FAIL_ON_INVALID_SUBTYPE, false);
         mapper.configure(DeserializationFeature.FAIL_ON_MISSING_EXTERNAL_TYPE_ID_PROPERTY, false);
         mapper.configure(DeserializationFeature.FAIL_ON_UNRESOLVED_OBJECT_IDS, false);
+        
+        // 添加的新配置
+        mapper.enable(MapperFeature.AUTO_DETECT_CREATORS);
+        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+        mapper.setVisibility(PropertyAccessor.ALL, JsonAutoDetect.Visibility.ANY);
+        mapper.setVisibility(PropertyAccessor.FIELD, JsonAutoDetect.Visibility.ANY);
         
         mapper.activateDefaultTyping(
             mapper.getPolymorphicTypeValidator(),
