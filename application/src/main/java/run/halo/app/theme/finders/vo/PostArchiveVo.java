@@ -3,8 +3,7 @@ package run.halo.app.theme.finders.vo;
 import java.util.List;
 import lombok.Builder;
 import lombok.Value;
-import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
+
 /**
  * Post archives by year and month.
  *
@@ -13,11 +12,14 @@ import lombok.AllArgsConstructor;
  */
 @Value
 @Builder
-@NoArgsConstructor
-@AllArgsConstructor
 public class PostArchiveVo {
-
     String year;
-
     List<PostArchiveYearMonthVo> months;
+
+    public static PostArchiveVo empty() {
+        return PostArchiveVo.builder()
+            .year("")
+            .months(List.of())
+            .build();
+    }
 }
