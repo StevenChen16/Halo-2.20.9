@@ -85,39 +85,51 @@ public class HaloConfiguration {
     @Bean
     public GenericJackson2JsonRedisSerializer redisSerializer() {
         ObjectMapper mapper = new ObjectMapper();
+        // 基础配置
         mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
         mapper.enable(MapperFeature.ACCEPT_CASE_INSENSITIVE_ENUMS);
         
-        // 添加Java 8+时间模块支持
+        // Java 8+ 时间模块支持
         mapper.registerModule(new JavaTimeModule());
         
-        // 添加Java 21的新特性支持
+        // 反序列化配置
         mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
         mapper.configure(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY, true);
         mapper.configure(DeserializationFeature.READ_UNKNOWN_ENUM_VALUES_AS_NULL, true);
+        mapper.configure(DeserializationFeature.READ_UNKNOWN_ENUM_VALUES_AS_NULL, true);
+        mapper.configure(DeserializationFeature.ACCEPT_EMPTY_STRING_AS_NULL_OBJECT, true);
+        mapper.configure(DeserializationFeature.FAIL_ON_MISSING_CREATOR_PROPERTIES, false);
         
-        // 启用默认类型信息
-        mapper.activateDefaultTyping(mapper.getPolymorphicTypeValidator(), 
-            ObjectMapper.DefaultTyping.NON_FINAL, JsonTypeInfo.As.PROPERTY);
+        // 类型处理配置
+        mapper.activateDefaultTyping(
+            mapper.getPolymorphicTypeValidator(),
+            ObjectMapper.DefaultTyping.NON_FINAL, 
+            JsonTypeInfo.As.PROPERTY
+        );
         
         return new GenericJackson2JsonRedisSerializer(mapper);
     }
-
+    
     @Bean
     public RedisCacheManager cacheManager(RedisConnectionFactory redisConnectionFactory) {
-        // 使用自定义的序列化器
         GenericJackson2JsonRedisSerializer serializer = redisSerializer();
         
         RedisCacheConfiguration defaultConfig = RedisCacheConfiguration.defaultCacheConfig()
-            .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(serializer))
-            .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(
-                new StringRedisSerializer()))
-            .entryTtl(Duration.ofHours(1));
+            .serializeValuesWith(
+                RedisSerializationContext.SerializationPair.fromSerializer(serializer)
+            )
+            .serializeKeysWith(
+                RedisSerializationContext.SerializationPair.fromSerializer(
+                    new StringRedisSerializer()
+                )
+            )
+            .entryTtl(Duration.ofHours(1))
+            // 配置空值也缓存，避免缓存穿透
+            .disableCachingNullValues(false);
     
-        // 创建不同缓存配置
+        // 不同类型缓存配置
         Map<String, RedisCacheConfiguration> cacheConfigurations = new HashMap<>();
         
-        // 为不同类型的缓存配置不同的过期时间
         cacheConfigurations.put("posts-list", 
             defaultConfig.entryTtl(Duration.ofMinutes(30)));
         cacheConfigurations.put("posts", 
@@ -126,14 +138,13 @@ public class HaloConfiguration {
             defaultConfig.entryTtl(Duration.ofHours(2)));
         cacheConfigurations.put("post-snapshots", 
             defaultConfig.entryTtl(Duration.ofHours(2)));
-        // 添加评论相关的缓存配置
         cacheConfigurations.put("comments-list", 
-            defaultConfig.entryTtl(Duration.ofHours(2)));  // 评论列表缓存
+            defaultConfig.entryTtl(Duration.ofMinutes(30)));  // 评论列表缓存30分钟
     
         return RedisCacheManager.builder(redisConnectionFactory)
             .cacheDefaults(defaultConfig)
             .withInitialCacheConfigurations(cacheConfigurations)
-            .transactionAware()  // 添加事务支持
+            .transactionAware()
             .build();
     }
     
