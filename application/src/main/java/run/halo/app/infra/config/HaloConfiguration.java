@@ -39,6 +39,7 @@ import com.fasterxml.jackson.annotation.PropertyAccessor;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import run.halo.app.theme.finders.vo.ContributorVo;
+import run.halo.app.infra.utils.JsonSerializer.ContributorVoSerDe;
 
 @EnableCaching
 @Configuration(proxyBeanMethods = false)
