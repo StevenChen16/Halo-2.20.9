@@ -44,7 +44,6 @@ import run.halo.app.extension.router.selector.LabelSelector;
 import run.halo.app.infra.utils.HaloUtils;
 import run.halo.app.infra.utils.JsonUtils;
 import run.halo.app.infra.utils.SortUtils;
-import run.halo.app.infra.config.RedisConfig;
 import run.halo.app.infra.config.HaloConfiguration;
 import run.halo.app.theme.finders.Finder;
 import run.halo.app.theme.finders.PostFinder;
