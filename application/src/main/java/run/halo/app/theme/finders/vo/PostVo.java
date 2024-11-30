@@ -7,7 +7,8 @@ import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 import org.springframework.util.Assert;
 import run.halo.app.core.extension.content.Post;
-
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
 /**
  * A value object for {@link Post}.
  *
@@ -18,6 +19,8 @@ import run.halo.app.core.extension.content.Post;
 @SuperBuilder
 @ToString
 @EqualsAndHashCode(callSuper = true)
+@NoArgsConstructor
+@AllArgsConstructor
 public class PostVo extends ListedPostVo {
 
     private ContentVo content;

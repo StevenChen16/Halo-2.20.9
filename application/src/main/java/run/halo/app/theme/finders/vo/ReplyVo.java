@@ -10,7 +10,8 @@ import lombok.ToString;
 import run.halo.app.content.comment.OwnerInfo;
 import run.halo.app.core.extension.content.Reply;
 import run.halo.app.extension.MetadataOperator;
-
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
 /**
  * A value object for {@link Reply}.
  *
@@ -21,6 +22,8 @@ import run.halo.app.extension.MetadataOperator;
 @Builder
 @ToString
 @EqualsAndHashCode
+@NoArgsConstructor
+@AllArgsConstructor
 public class ReplyVo implements ExtensionVoOperator {
 
     @Schema(requiredMode = REQUIRED)

@@ -7,6 +7,8 @@ import lombok.Value;
 import lombok.With;
 import run.halo.app.core.extension.Theme;
 import run.halo.app.extension.MetadataOperator;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
 
 /**
  * A value object for {@link Theme}.
@@ -17,6 +19,8 @@ import run.halo.app.extension.MetadataOperator;
 @Value
 @Builder
 @ToString
+@NoArgsConstructor
+@AllArgsConstructor
 public class ThemeVo implements ExtensionVoOperator {
 
     MetadataOperator metadata;

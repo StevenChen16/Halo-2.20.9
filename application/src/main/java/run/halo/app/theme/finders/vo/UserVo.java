@@ -7,9 +7,13 @@ import org.apache.commons.lang3.ObjectUtils;
 import run.halo.app.core.extension.User;
 import run.halo.app.extension.MetadataOperator;
 import run.halo.app.infra.utils.JsonUtils;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
 
 @Value
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class UserVo implements ExtensionVoOperator {
     MetadataOperator metadata;
 

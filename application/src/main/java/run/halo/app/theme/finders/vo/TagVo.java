@@ -6,12 +6,16 @@ import lombok.Builder;
 import lombok.Value;
 import run.halo.app.core.extension.content.Tag;
 import run.halo.app.extension.MetadataOperator;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
 
 /**
  * A value object for {@link Tag}.
  */
 @Value
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class TagVo implements ExtensionVoOperator {
 
     MetadataOperator metadata;

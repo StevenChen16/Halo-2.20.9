@@ -7,7 +7,8 @@ import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 import org.springframework.util.Assert;
 import run.halo.app.core.extension.content.SinglePage;
-
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
 /**
  * A value object for {@link SinglePage}.
  *
@@ -18,6 +19,8 @@ import run.halo.app.core.extension.content.SinglePage;
 @SuperBuilder
 @ToString
 @EqualsAndHashCode(callSuper = true)
+@NoArgsConstructor
+@AllArgsConstructor
 public class SinglePageVo extends ListedSinglePageVo {
 
     private ContentVo content;

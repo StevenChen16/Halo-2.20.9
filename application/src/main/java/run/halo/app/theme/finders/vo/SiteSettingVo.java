@@ -9,7 +9,8 @@ import org.springframework.util.Assert;
 import run.halo.app.extension.ConfigMap;
 import run.halo.app.infra.SystemSetting;
 import run.halo.app.infra.utils.JsonUtils;
-
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
 /**
  * Site setting value object for theme.
  *
@@ -18,6 +19,8 @@ import run.halo.app.infra.utils.JsonUtils;
  */
 @Value
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class SiteSettingVo {
 
     String title;

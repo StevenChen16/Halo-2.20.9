@@ -2,7 +2,8 @@ package run.halo.app.theme.finders.vo;
 
 import lombok.Builder;
 import lombok.Data;
-
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
 /**
  * A value object for site stats.
  *
@@ -11,6 +12,8 @@ import lombok.Data;
  */
 @Data
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class SiteStatsVo {
 
     private Integer visit;

@@ -4,16 +4,14 @@ import lombok.Builder;
 import lombok.ToString;
 import lombok.Value;
 import run.halo.app.core.extension.content.Snapshot;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
 
-/**
- * A value object for Content from {@link Snapshot}.
- *
- * @author guqing
- * @since 2.0.0
- */
 @Value
 @ToString
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class ContentVo {
 
     String raw;

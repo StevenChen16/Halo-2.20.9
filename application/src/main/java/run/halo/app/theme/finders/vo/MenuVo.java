@@ -8,7 +8,8 @@ import lombok.Value;
 import lombok.With;
 import run.halo.app.core.extension.Menu;
 import run.halo.app.extension.MetadataOperator;
-
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
 /**
  * A value object for {@link Menu}.
  *
@@ -18,6 +19,8 @@ import run.halo.app.extension.MetadataOperator;
 @Value
 @ToString
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class MenuVo implements ExtensionVoOperator {
 
     MetadataOperator metadata;

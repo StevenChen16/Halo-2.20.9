@@ -7,16 +7,14 @@ import lombok.ToString;
 import org.apache.commons.lang3.StringUtils;
 import run.halo.app.core.extension.MenuItem;
 import run.halo.app.extension.MetadataOperator;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
 
-/**
- * A value object for {@link MenuItem}.
- *
- * @author guqing
- * @since 2.0.0
- */
 @Data
 @ToString
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class MenuItemVo implements VisualizableTreeNode<MenuItemVo>, ExtensionVoOperator {
 
     MetadataOperator metadata;

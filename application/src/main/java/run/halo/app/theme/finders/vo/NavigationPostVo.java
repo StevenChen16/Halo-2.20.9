@@ -5,7 +5,8 @@ import static io.swagger.v3.oas.annotations.media.Schema.RequiredMode.NOT_REQUIR
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 import lombok.Value;
-
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
 /**
  * Post navigation vo to hold previous and next item.
  *
@@ -14,6 +15,8 @@ import lombok.Value;
  */
 @Value
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class NavigationPostVo {
 
     @Schema(requiredMode = NOT_REQUIRED)

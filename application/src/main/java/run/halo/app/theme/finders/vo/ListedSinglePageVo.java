@@ -8,17 +8,15 @@ import lombok.experimental.SuperBuilder;
 import org.springframework.util.Assert;
 import run.halo.app.core.extension.content.SinglePage;
 import run.halo.app.extension.MetadataOperator;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
 
-/**
- * A value object for {@link SinglePage}.
- *
- * @author guqing
- * @since 2.0.0
- */
 @Data
 @SuperBuilder
 @ToString
 @EqualsAndHashCode
+@NoArgsConstructor
+@AllArgsConstructor
 public class ListedSinglePageVo implements ExtensionVoOperator {
 
     private MetadataOperator metadata;
