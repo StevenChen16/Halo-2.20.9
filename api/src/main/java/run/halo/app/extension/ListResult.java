@@ -14,12 +14,14 @@ import java.util.stream.Stream;
 import lombok.Data;
 import org.springframework.util.Assert;
 import run.halo.app.infra.utils.GenericClassUtils;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonCreator;
 
 @Data
 public class ListResult<T> implements Iterable<T>, Supplier<Stream<T>> {
 
-    @Schema(description = "Page number, starts from 1. If not set or equal to 0, it means no "
-        + "pagination.", requiredMode = REQUIRED)
+    @Schema(description = "Page number, starts from 1. If not set or equal to 0, it means no pagination.",
+        requiredMode = REQUIRED)
     private final int page;
 
     @Schema(description = "Size of each page. If not set or equal to 0, it means no pagination.",
@@ -32,7 +34,18 @@ public class ListResult<T> implements Iterable<T>, Supplier<Stream<T>> {
     @Schema(description = "A chunk of items.", requiredMode = REQUIRED)
     private final List<T> items;
 
-    public ListResult(int page, int size, long total, List<T> items) {
+    // 添加一个无参构造函数以支持反序列化
+    protected ListResult() {
+        this(0, 0, 0, Collections.emptyList());
+    }
+
+    // 添加 @JsonCreator 注解到主构造函数
+    @JsonCreator
+    public ListResult(
+        @JsonProperty("page") int page,
+        @JsonProperty("size") int size,
+        @JsonProperty("total") long total,
+        @JsonProperty("items") List<T> items) {
         Assert.isTrue(total >= 0, "Total elements must be greater than or equal to 0");
         if (page < 0) {
             page = 0;
