@@ -24,6 +24,13 @@ import run.halo.app.search.lucene.LuceneSearchEngine;
 import org.springframework.data.redis.cache.RedisCacheConfiguration;
 import org.springframework.data.redis.serializer.RedisSerializationContext;
 import java.time.Duration;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.jsontype.JsonTypeInfo;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import java.util.Map;
+import java.util.HashMap;
+
 
 @EnableCaching
 @Configuration(proxyBeanMethods = false)
