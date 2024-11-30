@@ -116,6 +116,11 @@ public class HaloConfiguration {
         mapper.setVisibility(PropertyAccessor.FIELD, JsonAutoDetect.Visibility.ANY);
         mapper.setVisibility(PropertyAccessor.CREATOR, JsonAutoDetect.Visibility.ANY);
         
+        SimpleModule module = new SimpleModule();
+        module.addSerializer(ContributorVo.class, new ContributorVoSerDe.Serializer());
+        module.addDeserializer(ContributorVo.class, new ContributorVoSerDe.Deserializer());
+        mapper.registerModule(module);
+
         mapper.activateDefaultTyping(
             mapper.getPolymorphicTypeValidator(),
             ObjectMapper.DefaultTyping.NON_FINAL,
