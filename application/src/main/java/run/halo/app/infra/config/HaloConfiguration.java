@@ -94,34 +94,30 @@ public class HaloConfiguration {
 
     @Bean
     public RedisCacheManager cacheManager(RedisConnectionFactory redisConnectionFactory) {
-        // 创建Jackson序列化器并配置
-        ObjectMapper objectMapper = new ObjectMapper()
-            .enableDefaultTyping(ObjectMapper.DefaultTyping.NON_FINAL, JsonTypeInfo.As.PROPERTY)
-            .registerModule(new JavaTimeModule())  // 支持Java 8日期类型
-            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-        
-        // 使用配置好的Jackson序列化器创建Redis序列化器    
-        GenericJackson2JsonRedisSerializer serializer = 
-            new GenericJackson2JsonRedisSerializer(objectMapper);
-
+        // 创建 Redis 缓存配置
+        RedisCacheConfiguration defaultConfig = RedisCacheConfiguration.defaultCacheConfig()
+            // 使用 GenericJackson2JsonRedisSerializer 作为值序列化器
+            .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(
+                new GenericJackson2JsonRedisSerializer()))
+            // 使用 StringRedisSerializer 作为键序列化器
+            .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(
+                new StringRedisSerializer()))
+            // 默认过期时间1小时
+            .entryTtl(Duration.ofHours(1));
+    
         // 创建不同缓存配置
         Map<String, RedisCacheConfiguration> cacheConfigurations = new HashMap<>();
         
-        // 默认缓存配置
-        RedisCacheConfiguration defaultConfig = RedisCacheConfiguration.defaultCacheConfig()
-            .serializeValuesWith(
-                RedisSerializationContext.SerializationPair.fromSerializer(serializer))
-            .serializeKeysWith(
-                RedisSerializationContext.SerializationPair.fromSerializer(
-                    new StringRedisSerializer()))
-            .entryTtl(Duration.ofHours(1));
-
         // 为不同类型的缓存配置不同的过期时间
-        cacheConfigurations.put("posts-list", defaultConfig.entryTtl(Duration.ofMinutes(30)));
-        cacheConfigurations.put("posts", defaultConfig.entryTtl(Duration.ofHours(2)));
-        cacheConfigurations.put("post-contents", defaultConfig.entryTtl(Duration.ofHours(2)));
-        cacheConfigurations.put("post-snapshots", defaultConfig.entryTtl(Duration.ofHours(2)));
-
+        cacheConfigurations.put("posts-list", 
+            defaultConfig.entryTtl(Duration.ofMinutes(30)));
+        cacheConfigurations.put("posts", 
+            defaultConfig.entryTtl(Duration.ofHours(2)));
+        cacheConfigurations.put("post-contents", 
+            defaultConfig.entryTtl(Duration.ofHours(2)));
+        cacheConfigurations.put("post-snapshots", 
+            defaultConfig.entryTtl(Duration.ofHours(2)));
+    
         return RedisCacheManager.builder(redisConnectionFactory)
             .cacheDefaults(defaultConfig)
             .withInitialCacheConfigurations(cacheConfigurations)
