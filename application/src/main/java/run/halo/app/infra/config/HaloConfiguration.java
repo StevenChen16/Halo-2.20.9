@@ -123,9 +123,9 @@ public class HaloConfiguration {
                     new StringRedisSerializer()
                 )
             )
-            .entryTtl(Duration.ofHours(1))
-            // 配置空值也缓存，避免缓存穿透
-            .disableCachingNullValues(false);
+            .entryTtl(Duration.ofHours(1));
+            // disableCachingNullValues() 不接受参数，如果要允许缓存 null 值，就不要调用这个方法
+            // .disableCachingNullValues(false); // 错误的用法
     
         // 不同类型缓存配置
         Map<String, RedisCacheConfiguration> cacheConfigurations = new HashMap<>();
