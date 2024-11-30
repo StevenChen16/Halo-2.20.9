@@ -87,9 +87,15 @@ public class HaloConfiguration {
         ObjectMapper mapper = new ObjectMapper();
         mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
         mapper.enable(MapperFeature.ACCEPT_CASE_INSENSITIVE_ENUMS);
-        // 添加Java 8时间模块支持
+        
+        // 添加Java 8+时间模块支持
         mapper.registerModule(new JavaTimeModule());
+        
+        // 添加Java 21的新特性支持
         mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+        mapper.configure(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY, true);
+        mapper.configure(DeserializationFeature.READ_UNKNOWN_ENUM_VALUES_AS_NULL, true);
+        
         // 启用默认类型信息
         mapper.activateDefaultTyping(mapper.getPolymorphicTypeValidator(), 
             ObjectMapper.DefaultTyping.NON_FINAL, JsonTypeInfo.As.PROPERTY);
