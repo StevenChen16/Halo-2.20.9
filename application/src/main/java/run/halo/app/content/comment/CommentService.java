@@ -16,14 +16,13 @@ import run.halo.app.extension.Ref;
  */
 public interface CommentService {
 
-    @Cacheable(value = "comments-list", key = "{#query.keyword, #query.ownerKind, #query.ownerName, #query.page, #query.size, #query.sort}")
+    @Cacheable(value = "comments-list", 
+        key = "{#query?.keyword, #query?.ownerKind, #query?.ownerName, #query?.page, #query?.size, #query?.sort}")
     Mono<ListResult<ListedComment>> listComment(CommentQuery query);
 
     @CacheEvict(value = {"comments-list"}, allEntries = true)
     Mono<Comment> create(Comment comment);
 
-    @CacheEvict(value = {"comments-list"}, 
-        key = "#subjectRef.group + ':' + #subjectRef.version + ':' + #subjectRef.kind + ':' + #subjectRef.name",
-        allEntries = true)
+    @CacheEvict(value = {"comments-list"}, allEntries = true)
     Mono<Void> removeBySubject(@NonNull Ref subjectRef);
 }
