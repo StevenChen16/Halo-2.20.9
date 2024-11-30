@@ -94,6 +94,7 @@ public class HaloConfiguration {
         ObjectMapper mapper = new ObjectMapper();
         mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
         mapper.enable(MapperFeature.ACCEPT_CASE_INSENSITIVE_ENUMS);
+        mapper.enable(MapperFeature.CAN_OVERRIDE_ACCESS_MODIFIERS);
         
         mapper.registerModule(new JavaTimeModule());
         
@@ -106,11 +107,14 @@ public class HaloConfiguration {
         mapper.configure(DeserializationFeature.FAIL_ON_MISSING_EXTERNAL_TYPE_ID_PROPERTY, false);
         mapper.configure(DeserializationFeature.FAIL_ON_UNRESOLVED_OBJECT_IDS, false);
         
-        // 添加的新配置
-        mapper.enable(MapperFeature.AUTO_DETECT_CREATORS);
-        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+        mapper.disable(SerializationFeature.FAIL_ON_EMPTY_BEANS);
+        mapper.enable(MapperFeature.USE_STD_BEAN_NAMING);
+        mapper.enable(MapperFeature.AUTO_DETECT_FIELDS);
+        mapper.enable(MapperFeature.AUTO_DETECT_GETTERS);
+        mapper.enable(MapperFeature.AUTO_DETECT_IS_GETTERS);
         mapper.setVisibility(PropertyAccessor.ALL, JsonAutoDetect.Visibility.ANY);
         mapper.setVisibility(PropertyAccessor.FIELD, JsonAutoDetect.Visibility.ANY);
+        mapper.setVisibility(PropertyAccessor.CREATOR, JsonAutoDetect.Visibility.ANY);
         
         mapper.activateDefaultTyping(
             mapper.getPolymorphicTypeValidator(),
