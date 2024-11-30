@@ -71,6 +71,22 @@ public class PostFinderImpl implements PostFinder {
     private static final String POST_CACHE_PREFIX = "halo:post:list:";
     private static final String POST_UPDATE_CHANNEL = "halo:post:update";
 
+    @PostConstruct
+    public void init() {
+        redisTemplate.listenToChannel(POST_UPDATE_CHANNEL, message -> {
+            try {
+                String pattern = POST_CACHE_PREFIX + "*";
+                Set<String> keys = redisTemplate.keys(pattern);
+                if (keys != null && !keys.isEmpty()) {
+                    redisTemplate.delete(keys);
+                    log.info("Cleared post cache after receiving update event, cleared keys: {}", keys.size());
+                }
+            } catch (Exception e) {
+                log.error("Failed to clear post cache after receiving update event", e);
+            }
+        });
+    }
+
     @Override
     public Mono<PostVo> getByName(String postName) {
         return postPredicateResolver.getPredicate()
@@ -388,6 +404,40 @@ public class PostFinderImpl implements PostFinder {
         public PageRequest toPageRequest() {
             return PageRequestImpl.of(pageNullSafe(getPage()),
                 sizeNullSafe(getSize()), SortUtils.resolve(sort).and(defaultSort()));
+        }
+    }
+
+    @Override
+    public Mono<ListResult<ListedPostVo>> list(Integer page, Integer size) {
+        String cacheKey = POST_CACHE_PREFIX + "page:" + page + ":size:" + size;
+        
+        Object cachedResult = redisTemplate.opsForValue().get(cacheKey);
+        if (cachedResult != null) {
+            return Mono.just((ListResult<ListedPostVo>) cachedResult);
+        }
+
+        return Mono.defer(() -> {
+            var listOptions = ListOptions.builder()
+                .fieldQuery(notHiddenPostQuery())
+                .build();
+            return postPublicQueryService.list(listOptions, getPageRequest(page, size))
+                .doOnNext(result -> {
+                    redisTemplate.opsForValue().set(cacheKey, result, 30, TimeUnit.MINUTES);
+                    log.debug("Cached post list for page {} with key: {}", page, cacheKey);
+                });
+        });
+    }
+
+    private void clearPostCache() {
+        try {
+            String pattern = POST_CACHE_PREFIX + "*";
+            Set<String> keys = redisTemplate.keys(pattern);
+            if (keys != null && !keys.isEmpty()) {
+                redisTemplate.delete(keys);
+                log.info("Manually cleared post cache, cleared keys: {}", keys.size());
+            }
+        } catch (Exception e) {
+            log.error("Failed to clear post cache", e);
         }
     }
 }

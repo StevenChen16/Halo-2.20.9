@@ -246,19 +246,31 @@ public class PostServiceImpl extends AbstractContentService implements PostServi
         String releaseSnapshot = post.getSpec().getReleaseSnapshot();
         String baseSnapshot = post.getSpec().getBaseSnapshot();
 
+        Mono<Post> updateMono;
         if (StringUtils.equals(releaseSnapshot, headSnapshot)) {
             // create new snapshot to update first
-            return draftContent(baseSnapshot, postRequest.contentRequest(), headSnapshot)
+            updateMono = draftContent(baseSnapshot, postRequest.contentRequest(), headSnapshot)
+                .flatMap(contentWrapper -> {
+                    post.getSpec().setHeadSnapshot(contentWrapper.getSnapshotName());
+                    return client.update(post);
+                });
+        } else {
+            updateMono = updateContent(baseSnapshot, postRequest.contentRequest())
                 .flatMap(contentWrapper -> {
                     post.getSpec().setHeadSnapshot(contentWrapper.getSnapshotName());
                     return client.update(post);
                 });
         }
-        return updateContent(baseSnapshot, postRequest.contentRequest())
-            .flatMap(contentWrapper -> {
-                post.getSpec().setHeadSnapshot(contentWrapper.getSnapshotName());
-                return client.update(post);
-            });
+        
+        // 添加doOnSuccess处理器来发布更新事件
+        return updateMono.doOnSuccess(updatedPost -> {
+            try {
+                redisTemplate.convertAndSend(POST_UPDATE_CHANNEL, "update");
+                log.info("Published post update event for post: {}", updatedPost.getMetadata().getName());
+            } catch (Exception e) {
+                log.error("Failed to publish post update event", e);
+            }
+        });
     }
 
     @Override
