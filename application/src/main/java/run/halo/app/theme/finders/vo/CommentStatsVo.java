@@ -2,15 +2,13 @@ package run.halo.app.theme.finders.vo;
 
 import lombok.Builder;
 import lombok.Value;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
 
-/**
- * comment stats value object.
- *
- * @author LIlGG
- * @since 2.0.0
- */
 @Value
 @Builder
+@NoArgsConstructor(force = true)
+@AllArgsConstructor
 public class CommentStatsVo {
     Integer upvote;
 

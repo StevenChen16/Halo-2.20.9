@@ -6,32 +6,24 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
 import org.springframework.util.Assert;
 import run.halo.app.core.extension.content.Category;
 import run.halo.app.extension.MetadataOperator;
 
-/**
- * A tree vo for {@link Category}.
- *
- * @author guqing
- * @since 2.0.0
- */
 @Data
 @Builder
 @ToString
 @EqualsAndHashCode
+@NoArgsConstructor
+@AllArgsConstructor
 public class CategoryTreeVo implements VisualizableTreeNode<CategoryTreeVo>, ExtensionVoOperator {
-
     private MetadataOperator metadata;
-
     private Category.CategorySpec spec;
-
     private Category.CategoryStatus status;
-
     private List<CategoryTreeVo> children;
-
     private String parentName;
-
     private Integer postCount;
 
     /**

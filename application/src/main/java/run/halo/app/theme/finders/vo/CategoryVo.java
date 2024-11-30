@@ -3,26 +3,20 @@ package run.halo.app.theme.finders.vo;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Value;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
 import run.halo.app.core.extension.content.Category;
 import run.halo.app.extension.MetadataOperator;
 
-/**
- * A value object for {@link Category}.
- *
- * @author guqing
- * @since 2.0.0
- */
 @Value
 @Builder
 @EqualsAndHashCode
+@NoArgsConstructor(force = true)
+@AllArgsConstructor
 public class CategoryVo implements ExtensionVoOperator {
-
     MetadataOperator metadata;
-
     Category.CategorySpec spec;
-
     Category.CategoryStatus status;
-
     Integer postCount;
 
     /**
