@@ -19,14 +19,9 @@ import lombok.AllArgsConstructor;
 @Value
 @Builder
 @ToString
-@NoArgsConstructor
-@AllArgsConstructor
 public class ThemeVo implements ExtensionVoOperator {
-
     MetadataOperator metadata;
-
     Theme.ThemeSpec spec;
-
     @With
     JsonNode config;
 

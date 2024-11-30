@@ -19,14 +19,9 @@ import lombok.AllArgsConstructor;
 @Value
 @ToString
 @Builder
-@NoArgsConstructor
-@AllArgsConstructor
 public class MenuVo implements ExtensionVoOperator {
-
     MetadataOperator metadata;
-
     Menu.Spec spec;
-
     @With
     List<MenuItemVo> menuItems;
 

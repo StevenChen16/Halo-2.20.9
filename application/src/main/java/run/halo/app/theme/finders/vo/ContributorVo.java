@@ -17,20 +17,12 @@ import run.halo.app.extension.MetadataOperator;
 @Value
 @ToString
 @Builder
-@NoArgsConstructor(force = true)
-@AllArgsConstructor
 public class ContributorVo implements ExtensionVoOperator {
-
     String name;
-
     String displayName;
-
     String avatar;
-
     String bio;
-
     String permalink;
-
     MetadataOperator metadata;
 
     /**

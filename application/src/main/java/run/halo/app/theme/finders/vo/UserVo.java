@@ -12,13 +12,9 @@ import lombok.AllArgsConstructor;
 
 @Value
 @Builder
-@NoArgsConstructor
-@AllArgsConstructor
 public class UserVo implements ExtensionVoOperator {
     MetadataOperator metadata;
-
     User.UserSpec spec;
-
     User.UserStatus status;
 
     /**

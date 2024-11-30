@@ -9,8 +9,6 @@ import org.springframework.util.Assert;
 import run.halo.app.extension.ConfigMap;
 import run.halo.app.infra.SystemSetting;
 import run.halo.app.infra.utils.JsonUtils;
-import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
 /**
  * Site setting value object for theme.
  *
@@ -19,30 +17,18 @@ import lombok.AllArgsConstructor;
  */
 @Value
 @Builder
-@NoArgsConstructor
-@AllArgsConstructor
 public class SiteSettingVo {
-
     String title;
-
     @With
     URL url;
-
     @With
     String version;
-
     String subtitle;
-
     String logo;
-
     String favicon;
-
     Boolean allowRegistration;
-
     PostSetting post;
-
     SeoSetting seo;
-
     CommentSetting comment;
 
     /**
@@ -104,15 +90,12 @@ public class SiteSettingVo {
         return JsonUtils.jsonToObject(json, type);
     }
 
-    @Value
+    Value
     @Builder
     public static class PostSetting {
         Integer postPageSize;
-
         Integer archivePageSize;
-
         Integer categoryPageSize;
-
         Integer tagPageSize;
     }
 
@@ -120,9 +103,7 @@ public class SiteSettingVo {
     @Builder
     public static class SeoSetting {
         Boolean blockSpiders;
-
         String keywords;
-
         String description;
     }
 
@@ -130,9 +111,7 @@ public class SiteSettingVo {
     @Builder
     public static class CommentSetting {
         Boolean enable;
-
         Boolean systemUserOnly;
-
         Boolean requireReviewForNew;
     }
 }
