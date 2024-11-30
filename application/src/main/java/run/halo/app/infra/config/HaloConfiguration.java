@@ -200,6 +200,8 @@ public class HaloConfiguration {
         template.setHashKeySerializer(new StringRedisSerializer());
         template.setHashValueSerializer(serializer);
         
+        template.afterPropertiesSet();
+        
         return template;
     }
 
@@ -208,5 +210,20 @@ public class HaloConfiguration {
         RedisMessageListenerContainer container = new RedisMessageListenerContainer();
         container.setConnectionFactory(redisConnectionFactory);
         return container;
+    }
+
+    @Bean
+    public InitializingBean clearPostCache(RedisTemplate<String, Object> redisTemplate) {
+        return () -> {
+            try {
+                Set<String> keys = redisTemplate.keys("halo:post:list:*");
+                if (keys != null && !keys.isEmpty()) {
+                    redisTemplate.delete(keys);
+                    log.info("Cleared post cache during initialization, {} keys removed", keys.size());
+                }
+            } catch (Exception e) {
+                log.warn("Failed to clear post cache during initialization: {}", e.getMessage());
+            }
+        };
     }
 }
