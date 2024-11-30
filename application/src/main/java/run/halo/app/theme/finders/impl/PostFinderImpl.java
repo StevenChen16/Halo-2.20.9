@@ -9,15 +9,22 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import javax.annotation.PostConstruct;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import org.apache.commons.lang3.BooleanUtils;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.redis.connection.MessageListener;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.listener.ChannelTopic;
+import org.springframework.data.redis.listener.RedisMessageListenerContainer;
 import org.springframework.lang.NonNull;
 import org.springframework.util.Assert;
 import reactor.core.publisher.Flux;
@@ -48,8 +55,6 @@ import run.halo.app.theme.finders.vo.PostArchiveVo;
 import run.halo.app.theme.finders.vo.PostArchiveYearMonthVo;
 import run.halo.app.theme.finders.vo.PostVo;
 import run.halo.app.theme.router.ReactiveQueryPostPredicateResolver;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * A finder for {@link Post}.
@@ -58,7 +63,6 @@ import org.slf4j.LoggerFactory;
  * @since 2.0.0
  */
 @Finder("postFinder")
-@AllArgsConstructor
 public class PostFinderImpl implements PostFinder {
     private static final Logger log = LoggerFactory.getLogger(PostFinderImpl.class);
 
@@ -67,16 +71,31 @@ public class PostFinderImpl implements PostFinder {
     private final ReactiveQueryPostPredicateResolver postPredicateResolver;
     private final CategoryService categoryService;
     private final RedisTemplate<String, Object> redisTemplate;
+    private final RedisMessageListenerContainer redisMessageListenerContainer;
     
     private static final String POST_CACHE_PREFIX = "halo:post:list:";
     private static final String POST_UPDATE_CHANNEL = "halo:post:update";
 
+    public PostFinderImpl(ReactiveExtensionClient client,
+                         PostPublicQueryService postPublicQueryService,
+                         ReactiveQueryPostPredicateResolver postPredicateResolver,
+                         CategoryService categoryService,
+                         RedisTemplate<String, Object> redisTemplate,
+                         RedisMessageListenerContainer redisMessageListenerContainer) {
+        this.client = client;
+        this.postPublicQueryService = postPublicQueryService;
+        this.postPredicateResolver = postPredicateResolver;
+        this.categoryService = categoryService;
+        this.redisTemplate = redisTemplate;
+        this.redisMessageListenerContainer = redisMessageListenerContainer;
+    }
+
     @PostConstruct
     public void init() {
-        redisTemplate.listenToChannel(POST_UPDATE_CHANNEL, message -> {
+        MessageListener messageListener = (message, pattern) -> {
             try {
-                String pattern = POST_CACHE_PREFIX + "*";
-                Set<String> keys = redisTemplate.keys(pattern);
+                String p = POST_CACHE_PREFIX + "*";
+                Set<String> keys = redisTemplate.keys(p);
                 if (keys != null && !keys.isEmpty()) {
                     redisTemplate.delete(keys);
                     log.info("Cleared post cache after receiving update event, cleared keys: {}", keys.size());
@@ -84,7 +103,12 @@ public class PostFinderImpl implements PostFinder {
             } catch (Exception e) {
                 log.error("Failed to clear post cache after receiving update event", e);
             }
-        });
+        };
+        
+        redisMessageListenerContainer.addMessageListener(
+            messageListener,
+            new ChannelTopic(POST_UPDATE_CHANNEL)
+        );
     }
 
     @Override
@@ -346,15 +370,6 @@ public class PostFinderImpl implements PostFinder {
             .flatMapSequential(postPublicQueryService::convertToListedVo);
     }
 
-    public void publishPostUpdateEvent() {
-        try {
-            redisTemplate.convertAndSend(POST_UPDATE_CHANNEL, "update");
-            log.info("Published post update event");
-        } catch (Exception e) {
-            log.error("Failed to publish post update event", e);
-        }
-    }
-
     private String generateCacheKey(Map<String, Object> params) {
         return params != null ? params.toString().replaceAll("[{}\\s]", "") : "default";
     }
@@ -438,6 +453,15 @@ public class PostFinderImpl implements PostFinder {
             }
         } catch (Exception e) {
             log.error("Failed to clear post cache", e);
+        }
+    }
+
+    public void publishPostUpdateEvent() {
+        try {
+            redisTemplate.convertAndSend(POST_UPDATE_CHANNEL, "update");
+            log.info("Published post update event");
+        } catch (Exception e) {
+            log.error("Failed to publish post update event", e);
         }
     }
 }
