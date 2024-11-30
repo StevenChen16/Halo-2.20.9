@@ -126,10 +126,14 @@ public class HaloConfiguration {
             defaultConfig.entryTtl(Duration.ofHours(2)));
         cacheConfigurations.put("post-snapshots", 
             defaultConfig.entryTtl(Duration.ofHours(2)));
+        // 添加评论相关的缓存配置
+        cacheConfigurations.put("comments-list", 
+            defaultConfig.entryTtl(Duration.ofHours(2)));  // 评论列表缓存
     
         return RedisCacheManager.builder(redisConnectionFactory)
             .cacheDefaults(defaultConfig)
             .withInitialCacheConfigurations(cacheConfigurations)
+            .transactionAware()  // 添加事务支持
             .build();
     }
     
