@@ -26,6 +26,10 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
 import org.springframework.scheduling.annotation.EnableAsync;
 import run.halo.app.infra.properties.HaloProperties;
 import run.halo.app.search.lucene.LuceneSearchEngine;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
 @EnableCaching
 @Configuration(proxyBeanMethods = false)
@@ -79,27 +83,31 @@ public class HaloConfiguration {
     }
 
     @Bean
-    public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory redisConnectionFactory) {
-        RedisTemplate<String, Object> template = new RedisTemplate<>();
-        template.setConnectionFactory(redisConnectionFactory);
-        template.setKeySerializer(new StringRedisSerializer());
-        template.setValueSerializer(new GenericJackson2JsonRedisSerializer());
-        return template;
+    public GenericJackson2JsonRedisSerializer redisSerializer() {
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
+        mapper.enable(MapperFeature.ACCEPT_CASE_INSENSITIVE_ENUMS);
+        // 添加Java 8时间模块支持
+        mapper.registerModule(new JavaTimeModule());
+        mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+        // 启用默认类型信息
+        mapper.activateDefaultTyping(mapper.getPolymorphicTypeValidator(), 
+            ObjectMapper.DefaultTyping.NON_FINAL, JsonTypeInfo.As.PROPERTY);
+        
+        return new GenericJackson2JsonRedisSerializer(mapper);
     }
 
     @Bean
     public RedisCacheManager cacheManager(RedisConnectionFactory redisConnectionFactory) {
-        // 创建 Redis 缓存配置
+        // 使用自定义的序列化器
+        GenericJackson2JsonRedisSerializer serializer = redisSerializer();
+        
         RedisCacheConfiguration defaultConfig = RedisCacheConfiguration.defaultCacheConfig()
-            // 使用 GenericJackson2JsonRedisSerializer 作为值序列化器
-            .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(
-                new GenericJackson2JsonRedisSerializer()))
-            // 使用 StringRedisSerializer 作为键序列化器
+            .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(serializer))
             .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(
                 new StringRedisSerializer()))
-            // 默认过期时间1小时
             .entryTtl(Duration.ofHours(1));
-
+    
         // 创建不同缓存配置
         Map<String, RedisCacheConfiguration> cacheConfigurations = new HashMap<>();
         
@@ -112,10 +120,27 @@ public class HaloConfiguration {
             defaultConfig.entryTtl(Duration.ofHours(2)));
         cacheConfigurations.put("post-snapshots", 
             defaultConfig.entryTtl(Duration.ofHours(2)));
-
+    
         return RedisCacheManager.builder(redisConnectionFactory)
             .cacheDefaults(defaultConfig)
             .withInitialCacheConfigurations(cacheConfigurations)
             .build();
     }
+    
+    @Bean
+    public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory redisConnectionFactory) {
+        RedisTemplate<String, Object> template = new RedisTemplate<>();
+        template.setConnectionFactory(redisConnectionFactory);
+        
+        // 使用相同的序列化器
+        GenericJackson2JsonRedisSerializer serializer = redisSerializer();
+        
+        template.setKeySerializer(new StringRedisSerializer());
+        template.setValueSerializer(serializer);
+        template.setHashKeySerializer(new StringRedisSerializer());
+        template.setHashValueSerializer(serializer);
+        
+        return template;
+    }
 }
+

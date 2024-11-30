@@ -16,7 +16,7 @@ import run.halo.app.extension.Ref;
  */
 public interface CommentService {
 
-    @Cacheable(value = "comments-list", key = "#query")
+    @Cacheable(value = "comments-list", key = "{#query.keyword, #query.ownerKind, #query.ownerName, #query.page, #query.size, #query.sort}")
     Mono<ListResult<ListedComment>> listComment(CommentQuery query);
 
     @CacheEvict(value = {"comments-list"}, allEntries = true)
