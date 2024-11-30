@@ -11,65 +11,78 @@ import run.halo.app.extension.ListResult;
 /**
  * Service for {@link Post}.
  *
- * @author StevenChen6
+ * @author StevenChen16
  * @since 2.20.10
  */
 public interface PostService {
-
-    @Cacheable(value = "posts-list", key = "#query")
+    // 文章列表缓存,使用查询参数作为key
+    @Cacheable(value = "posts-list", 
+        key = "T(String).format('list:%s:%d:%d:%s', " + 
+              "#query.categoryWithChildren, #query.page, #query.size, #query.keyword)",
+        unless = "#result == null")
     Mono<ListResult<ListedPost>> listPost(PostQuery query);
 
-    @CacheEvict(value = {"posts", "posts-list"}, allEntries = true)
+    // 清除所有文章相关缓存
+    @CacheEvict(value = {"posts", "posts-list", "post-contents"}, allEntries = true)
     Mono<Post> draftPost(PostRequest postRequest);
 
-    @CacheEvict(value = {"posts", "posts-list"}, allEntries = true)
+    @CacheEvict(value = {"posts", "posts-list", "post-contents"}, allEntries = true)
     Mono<Post> updatePost(PostRequest postRequest);
 
-    @CacheEvict(value = {"posts", "posts-list"}, allEntries = true)
+    @CacheEvict(value = {"posts", "posts-list", "post-contents"}, allEntries = true)
     Mono<Post> updateBy(@NonNull Post post);
 
-    @Cacheable(value = "posts", key = "'head:' + #postName")
+    // 文章内容缓存
+    @Cacheable(value = "posts", 
+        key = "'head:' + #postName", 
+        unless = "#result == null")
     Mono<ContentWrapper> getHeadContent(String postName);
 
-    @Cacheable(value = "posts", key = "'head:' + #post.metadata.name")
+    @Cacheable(value = "posts", 
+        key = "'head:' + #post.metadata.name",
+        unless = "#result == null")
     Mono<ContentWrapper> getHeadContent(Post post);
 
-    @Cacheable(value = "posts", key = "'release:' + #postName")
+    @Cacheable(value = "posts", 
+        key = "'release:' + #postName",
+        unless = "#result == null")
     Mono<ContentWrapper> getReleaseContent(String postName);
 
-    @Cacheable(value = "posts", key = "'release:' + #post.metadata.name")
+    @Cacheable(value = "posts", 
+        key = "'release:' + #post.metadata.name",
+        unless = "#result == null")
     Mono<ContentWrapper> getReleaseContent(Post post);
 
-    @Cacheable(value = "post-contents", key = "#snapshotName + ':' + #baseSnapshotName")
+    @Cacheable(value = "post-contents", 
+        key = "#snapshotName + ':' + #baseSnapshotName",
+        unless = "#result == null")
     Mono<ContentWrapper> getContent(String snapshotName, String baseSnapshotName);
 
-    @Cacheable(value = "post-snapshots", key = "#name")
+    @Cacheable(value = "post-snapshots", 
+        key = "#name",
+        unless = "#result == null")
     Flux<ListedSnapshotDto> listSnapshots(String name);
 
-    @CacheEvict(value = {"posts", "posts-list"}, allEntries = true)
+    // 更新操作清除所有相关缓存
+    @CacheEvict(value = {"posts", "posts-list", "post-contents"}, allEntries = true)
     Mono<Post> publish(Post post);
 
-    @CacheEvict(value = {"posts", "posts-list"}, allEntries = true)
+    @CacheEvict(value = {"posts", "posts-list", "post-contents"}, allEntries = true)
     Mono<Post> unpublish(Post post);
 
-    /**
-     * Get post by username.
-     *
-     * @param postName is post name.
-     * @param username is username.
-     * @return full post data or empty.
-     */
-    @Cacheable(value = "posts", key = "#postName + ':' + #username")
+    @Cacheable(value = "posts", 
+        key = "'user:' + #postName + ':' + #username",
+        unless = "#result == null")
     Mono<Post> getByUsername(String postName, String username);
 
     @CacheEvict(value = {"posts", "posts-list", "post-contents"}, allEntries = true)
     Mono<Post> revertToSpecifiedSnapshot(String postName, String snapshotName);
 
     @CacheEvict(value = {"posts", "posts-list", "post-contents", "post-snapshots"}, 
-        key = "#postName", allEntries = true)
+        allEntries = true)
     Mono<ContentWrapper> deleteContent(String postName, String snapshotName);
 
     @CacheEvict(value = {"posts", "posts-list", "post-contents", "post-snapshots"}, 
-        key = "#postName", allEntries = true)
+        allEntries = true)
     Mono<Post> recycleBy(String postName, String username);
 }
