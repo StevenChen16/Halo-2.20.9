@@ -4,19 +4,15 @@ import lombok.Builder;
 import lombok.ToString;
 import lombok.Value;
 import run.halo.app.core.extension.content.Snapshot;
-import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
 
 @Value
 @ToString
 @Builder
-@NoArgsConstructor
-@AllArgsConstructor
 public class ContentVo {
 
-    String raw = "";
+    String raw;
 
-    String content = "";
+    String content;
 
     /**
      * Empty content object.
