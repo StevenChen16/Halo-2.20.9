@@ -9,6 +9,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -16,6 +17,7 @@ import org.apache.commons.lang3.BooleanUtils;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.lang.NonNull;
 import org.springframework.util.Assert;
 import reactor.core.publisher.Flux;
@@ -46,6 +48,8 @@ import run.halo.app.theme.finders.vo.PostArchiveVo;
 import run.halo.app.theme.finders.vo.PostArchiveYearMonthVo;
 import run.halo.app.theme.finders.vo.PostVo;
 import run.halo.app.theme.router.ReactiveQueryPostPredicateResolver;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A finder for {@link Post}.
@@ -56,14 +60,16 @@ import run.halo.app.theme.router.ReactiveQueryPostPredicateResolver;
 @Finder("postFinder")
 @AllArgsConstructor
 public class PostFinderImpl implements PostFinder {
+    private static final Logger log = LoggerFactory.getLogger(PostFinderImpl.class);
 
     private final ReactiveExtensionClient client;
-
     private final PostPublicQueryService postPublicQueryService;
-
     private final ReactiveQueryPostPredicateResolver postPredicateResolver;
-
     private final CategoryService categoryService;
+    private final RedisTemplate<String, Object> redisTemplate;
+    
+    private static final String POST_CACHE_PREFIX = "halo:post:list:";
+    private static final String POST_UPDATE_CHANNEL = "halo:post:update";
 
     @Override
     public Mono<PostVo> getByName(String postName) {
@@ -153,29 +159,59 @@ public class PostFinderImpl implements PostFinder {
 
     @Override
     public Mono<ListResult<ListedPostVo>> list(Map<String, Object> params) {
-        var query = Optional.ofNullable(params)
-            .map(map -> JsonUtils.mapToObject(map, PostQuery.class))
-            .orElseGet(PostQuery::new);
-        if (StringUtils.isNotBlank(query.getCategoryName())) {
-            return listChildrenCategories(query.getCategoryName())
-                .map(category -> category.getMetadata().getName())
-                .collectList()
-                .map(categoryNames -> ListOptions.builder(query.toListOptions())
-                    .andQuery(in("spec.categories", categoryNames))
-                    .build()
-                )
-                .flatMap(
-                    listOptions -> postPublicQueryService.list(listOptions, query.toPageRequest()));
+        String cacheKey = POST_CACHE_PREFIX + generateCacheKey(params);
+        
+        Object cachedResult = redisTemplate.opsForValue().get(cacheKey);
+        if (cachedResult != null) {
+            return Mono.just((ListResult<ListedPostVo>) cachedResult);
         }
-        return postPublicQueryService.list(query.toListOptions(), query.toPageRequest());
+
+        return Mono.defer(() -> {
+            var query = Optional.ofNullable(params)
+                .map(map -> JsonUtils.mapToObject(map, PostQuery.class))
+                .orElseGet(PostQuery::new);
+            if (StringUtils.isNotBlank(query.getCategoryName())) {
+                return listChildrenCategories(query.getCategoryName())
+                    .map(category -> category.getMetadata().getName())
+                    .collectList()
+                    .map(categoryNames -> ListOptions.builder(query.toListOptions())
+                        .andQuery(in("spec.categories", categoryNames))
+                        .build()
+                    )
+                    .flatMap(
+                        listOptions -> postPublicQueryService.list(listOptions, query.toPageRequest())
+                            .doOnNext(result -> {
+                                redisTemplate.opsForValue().set(cacheKey, result, 30, TimeUnit.MINUTES);
+                                log.debug("Cached post list with key: {}", cacheKey);
+                            }));
+            }
+            return postPublicQueryService.list(query.toListOptions(), query.toPageRequest())
+                .doOnNext(result -> {
+                    redisTemplate.opsForValue().set(cacheKey, result, 30, TimeUnit.MINUTES);
+                    log.debug("Cached post list with key: {}", cacheKey);
+                });
+        });
     }
 
     @Override
     public Mono<ListResult<ListedPostVo>> list(Integer page, Integer size) {
-        var listOptions = ListOptions.builder()
-            .fieldQuery(notHiddenPostQuery())
-            .build();
-        return postPublicQueryService.list(listOptions, getPageRequest(page, size));
+        String cacheKey = POST_CACHE_PREFIX + "page:" + page + ":size:" + size;
+        
+        Object cachedResult = redisTemplate.opsForValue().get(cacheKey);
+        if (cachedResult != null) {
+            return Mono.just((ListResult<ListedPostVo>) cachedResult);
+        }
+
+        return Mono.defer(() -> {
+            var listOptions = ListOptions.builder()
+                .fieldQuery(notHiddenPostQuery())
+                .build();
+            return postPublicQueryService.list(listOptions, getPageRequest(page, size))
+                .doOnNext(result -> {
+                    redisTemplate.opsForValue().set(cacheKey, result, 30, TimeUnit.MINUTES);
+                    log.debug("Cached post list for page {} with key: {}", page, cacheKey);
+                });
+        });
     }
 
     private PageRequestImpl getPageRequest(Integer page, Integer size) {
@@ -292,6 +328,19 @@ public class PostFinderImpl implements PostFinder {
         return postPredicateResolver.getListOptions()
             .flatMapMany(listOptions -> client.listAll(Post.class, listOptions, defaultSort()))
             .flatMapSequential(postPublicQueryService::convertToListedVo);
+    }
+
+    public void publishPostUpdateEvent() {
+        try {
+            redisTemplate.convertAndSend(POST_UPDATE_CHANNEL, "update");
+            log.info("Published post update event");
+        } catch (Exception e) {
+            log.error("Failed to publish post update event", e);
+        }
+    }
+
+    private String generateCacheKey(Map<String, Object> params) {
+        return params != null ? params.toString().replaceAll("[{}\\s]", "") : "default";
     }
 
     static int pageNullSafe(Integer page) {
