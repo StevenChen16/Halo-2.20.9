@@ -5,6 +5,8 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
 import org.springframework.util.Assert;
 import run.halo.app.core.extension.content.Post;
 import run.halo.app.extension.MetadataOperator;
@@ -19,22 +21,16 @@ import run.halo.app.extension.MetadataOperator;
 @SuperBuilder
 @ToString
 @EqualsAndHashCode
+@NoArgsConstructor
+@AllArgsConstructor
 public class ListedPostVo implements ExtensionVoOperator {
-
     private MetadataOperator metadata;
-
     private Post.PostSpec spec;
-
     private Post.PostStatus status;
-
     private List<CategoryVo> categories;
-
     private List<TagVo> tags;
-
     private List<ContributorVo> contributors;
-
     private ContributorVo owner;
-
     private StatsVo stats;
 
     /**

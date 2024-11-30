@@ -5,7 +5,6 @@ import static org.springframework.web.reactive.function.server.RequestPredicates
 import static run.halo.app.theme.router.PageUrlUtils.totalPage;
 
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 import lombok.AllArgsConstructor;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.MediaType;
@@ -21,16 +20,15 @@ import run.halo.app.infra.SystemConfigurableEnvironmentFetcher;
 import run.halo.app.infra.SystemSetting;
 import run.halo.app.theme.DefaultTemplateEnum;
 import run.halo.app.theme.finders.PostFinder;
-import run.halo.app.theme.finders.vo.ListedPostVo;
 import run.halo.app.theme.router.ModelConst;
 import run.halo.app.theme.router.PageUrlUtils;
 import run.halo.app.theme.router.TitleVisibilityIdentifyCalculator;
 import run.halo.app.theme.router.UrlContextListResult;
 import run.halo.app.extension.ListResult;
-import jakarta.annotation.PostConstruct;
 import org.springframework.data.redis.listener.ChannelTopic;
 import org.springframework.data.redis.listener.RedisMessageListenerContainer;
 import org.springframework.data.redis.listener.adapter.MessageListenerAdapter;
+import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.util.Set;
@@ -44,7 +42,7 @@ public class IndexRouteFactory implements RouteFactory {
     private final SystemConfigurableEnvironmentFetcher environmentFetcher;
     private final TitleVisibilityIdentifyCalculator titleVisibilityIdentifyCalculator;
     private final LocaleContextResolver localeContextResolver;
-    private final RedisTemplate<String, Object> redisTemplate;
+    private final RedisTemplate<String, String> stringRedisTemplate;  // 使用 String 类型的 RedisTemplate
     private final RedisMessageListenerContainer listenerContainer;
     
     private static final String POST_UPDATE_CHANNEL = "halo:post:update";
@@ -53,7 +51,6 @@ public class IndexRouteFactory implements RouteFactory {
     @PostConstruct
     public void init() {
         MessageListenerAdapter messageListener = new MessageListenerAdapter(new PostUpdateMessageListener());
-        messageListener.setSerializer(redisTemplate.getValueSerializer());
         listenerContainer.addMessageListener(messageListener, new ChannelTopic(POST_UPDATE_CHANNEL));
         log.info("Initialized Redis message listener for post updates");
     }
@@ -67,9 +64,9 @@ public class IndexRouteFactory implements RouteFactory {
 
     private void clearPageCache() {
         try {
-            Set<String> keys = redisTemplate.keys(INDEX_CACHE_PREFIX + "*");
+            Set<String> keys = stringRedisTemplate.keys(INDEX_CACHE_PREFIX + "*");
             if (keys != null && !keys.isEmpty()) {
-                redisTemplate.delete(keys);
+                stringRedisTemplate.delete(keys);
                 log.info("Cleared index page cache, keys count: {}", keys.size());
             }
         } catch (Exception e) {
@@ -97,18 +94,9 @@ public class IndexRouteFactory implements RouteFactory {
         int page = pageNumInPathVariable(request);
         String cacheKey = INDEX_CACHE_PREFIX + page;
 
-        Object cachedResult = redisTemplate.opsForValue().get(cacheKey);
-        if (cachedResult != null) {
-            return Mono.just((ListResult<ListedPostVo>) cachedResult)
-                .map(list -> processListResult(list, request, path));
-        }
-
+        // 不再尝试从缓存获取，直接获取新数据
         return configuredPageSize(environmentFetcher, SystemSetting.Post::getPostPageSize)
             .flatMap(pageSize -> postFinder.list(page, pageSize))
-            .doOnNext(result -> {
-                redisTemplate.opsForValue().set(cacheKey, result, 30, TimeUnit.MINUTES);
-                log.debug("Cached post list for page {} with key {}", page, cacheKey);
-            })
             .map(list -> processListResult(list, request, path));
     }
 
