@@ -37,6 +37,8 @@ import org.springframework.data.redis.listener.ChannelTopic;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.PropertyAccessor;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.module.SimpleModule;
+import run.halo.app.theme.finders.vo.ContributorVo;
 
 @EnableCaching
 @Configuration(proxyBeanMethods = false)
