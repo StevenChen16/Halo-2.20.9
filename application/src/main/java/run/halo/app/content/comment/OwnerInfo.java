@@ -1,5 +1,7 @@
 package run.halo.app.content.comment;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
 import lombok.Value;
 import run.halo.app.core.extension.User;
@@ -16,14 +18,26 @@ import run.halo.app.core.extension.content.Comment;
 public class OwnerInfo {
 
     String kind;
-
     String name;
-
     String displayName;
-
     String avatar;
-
     String email;
+
+    // 添加 JsonCreator 注解的全参构造函数
+    @JsonCreator
+    public OwnerInfo(
+        @JsonProperty("kind") String kind,
+        @JsonProperty("name") String name,
+        @JsonProperty("displayName") String displayName,
+        @JsonProperty("avatar") String avatar,
+        @JsonProperty("email") String email
+    ) {
+        this.kind = kind;
+        this.name = name;
+        this.displayName = displayName;
+        this.avatar = avatar;
+        this.email = email;
+    }
 
     /**
      * Convert user to owner info by owner that has an email kind .
