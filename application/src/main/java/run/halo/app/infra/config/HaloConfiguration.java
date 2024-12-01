@@ -43,6 +43,8 @@ import run.halo.app.infra.utils.JsonSerializer.ContributorVoSerDe;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import run.halo.app.core.extension.content.Tag;
 import run.halo.app.extension.MetadataOperator;
+import run.halo.app.infra.utils.JsonSerializer.TagVoSerDe;
+import run.halo.app.theme.finders.vo.TagVo;
 
 @EnableCaching
 @Configuration(proxyBeanMethods = false)
