@@ -125,8 +125,6 @@ public class HaloConfiguration {
         SimpleModule module = new SimpleModule();
         module.addSerializer(ContributorVo.class, new ContributorVoSerDe.Serializer());
         module.addDeserializer(ContributorVo.class, new ContributorVoSerDe.Deserializer());
-        mapper.registerModule(module);
-        // 添加 TagVo 的序列化器
         module.addSerializer(TagVo.class, new TagVoSerDe.Serializer());
         module.addDeserializer(TagVo.class, new TagVoSerDe.Deserializer());
         mapper.registerModule(module);
