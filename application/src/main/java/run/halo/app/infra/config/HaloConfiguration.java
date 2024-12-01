@@ -40,6 +40,9 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import run.halo.app.theme.finders.vo.ContributorVo;
 import run.halo.app.infra.utils.JsonSerializer.ContributorVoSerDe;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import run.halo.app.core.extension.content.Tag;
+import run.halo.app.extension.MetadataOperator;
 
 @EnableCaching
 @Configuration(proxyBeanMethods = false)
@@ -122,6 +125,10 @@ public class HaloConfiguration {
         SimpleModule module = new SimpleModule();
         module.addSerializer(ContributorVo.class, new ContributorVoSerDe.Serializer());
         module.addDeserializer(ContributorVo.class, new ContributorVoSerDe.Deserializer());
+        mapper.registerModule(module);
+        // 添加 TagVo 的序列化器
+        module.addSerializer(TagVo.class, new TagVoSerDe.Serializer());
+        module.addDeserializer(TagVo.class, new TagVoSerDe.Deserializer());
         mapper.registerModule(module);
 
         mapper.activateDefaultTyping(
