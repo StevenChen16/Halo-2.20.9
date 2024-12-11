@@ -7,6 +7,8 @@ import reactor.core.publisher.Mono;
 import run.halo.app.core.extension.content.Comment;
 import run.halo.app.extension.ListResult;
 import run.halo.app.extension.Ref;
+import run.halo.app.infra.config.RedisMessagePublisher;
+import org.springframework.beans.factory.annotation.Autowired;
 
 /**
  * An application service for {@link Comment}.
@@ -21,8 +23,29 @@ public interface CommentService {
     Mono<ListResult<ListedComment>> listComment(CommentQuery query);
 
     @CacheEvict(value = {"comments-list"}, allEntries = true)
-    Mono<Comment> create(Comment comment);
+    default Mono<Comment> create(Comment comment) {
+        return Mono.defer(() -> {
+            // Publish cache invalidation message
+            redisMessagePublisher.publish("comments-list");
+            return createComment(comment);
+        });
+    }
 
     @CacheEvict(value = {"comments-list"}, allEntries = true)
-    Mono<Void> removeBySubject(@NonNull Ref subjectRef);
+    default Mono<Void> removeBySubject(@NonNull Ref subjectRef) {
+        return Mono.defer(() -> {
+            // Publish cache invalidation message
+            redisMessagePublisher.publish("comments-list");
+            return removeCommentBySubject(subjectRef);
+        });
+    }
+
+    // Method to create a comment
+    Mono<Comment> createComment(Comment comment);
+
+    // Method to remove a comment by subject
+    Mono<Void> removeCommentBySubject(@NonNull Ref subjectRef);
+
+    @Autowired
+    RedisMessagePublisher redisMessagePublisher;
 }

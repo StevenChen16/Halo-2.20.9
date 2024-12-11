@@ -45,6 +45,8 @@ import run.halo.app.core.extension.content.Tag;
 import run.halo.app.extension.MetadataOperator;
 import run.halo.app.infra.utils.JsonSerializer.TagVoSerDe;
 import run.halo.app.theme.finders.vo.TagVo;
+import run.halo.app.infra.config.RedisMessagePublisher;
+import run.halo.app.infra.config.RedisMessageSubscriber;
 
 @EnableCaching
 @Configuration(proxyBeanMethods = false)
@@ -224,7 +226,18 @@ public class HaloConfiguration {
     public RedisMessageListenerContainer redisMessageListenerContainer(RedisConnectionFactory redisConnectionFactory) {
         RedisMessageListenerContainer container = new RedisMessageListenerContainer();
         container.setConnectionFactory(redisConnectionFactory);
+        container.addMessageListener(redisMessageSubscriber(), new ChannelTopic("halo:cache:invalidation"));
         return container;
+    }
+
+    @Bean
+    public RedisMessagePublisher redisMessagePublisher(RedisTemplate<String, Object> redisTemplate) {
+        return new RedisMessagePublisher(redisTemplate);
+    }
+
+    @Bean
+    public RedisMessageSubscriber redisMessageSubscriber() {
+        return new RedisMessageSubscriber();
     }
 
     @Bean
