@@ -1,13 +1,9 @@
 package run.halo.app.content.comment;
 
-import static run.halo.app.extension.index.query.QueryFactory.and;
-import static run.halo.app.extension.index.query.QueryFactory.equal;
-import static run.halo.app.extension.index.query.QueryFactory.isNull;
-
-import java.time.Duration;
-import java.time.Instant;
-import java.util.function.Function;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.BooleanUtils;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.data.domain.Sort;
 import org.springframework.lang.NonNull;
@@ -31,28 +27,38 @@ import run.halo.app.extension.router.selector.FieldSelector;
 import run.halo.app.infra.SystemConfigurableEnvironmentFetcher;
 import run.halo.app.infra.exception.AccessDeniedException;
 import run.halo.app.plugin.extensionpoint.ExtensionGetter;
+import run.halo.app.infra.cache.RedisMessagePublisher;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.function.Function;
 
-/**
- * Comment service implementation.
- *
- * @author guqing
- * @since 2.0.0
- */
+import static run.halo.app.extension.index.query.QueryFactory.and;
+import static run.halo.app.extension.index.query.QueryFactory.equal;
+import static run.halo.app.extension.index.query.QueryFactory.isNull;
+
+@Slf4j
 @Component
 public class CommentServiceImpl extends AbstractCommentService implements CommentService {
-
     private final ExtensionGetter extensionGetter;
     private final SystemConfigurableEnvironmentFetcher environmentFetcher;
+    private final RedisMessagePublisher redisMessagePublisher;
 
-    public CommentServiceImpl(RoleService roleService, ReactiveExtensionClient client,
-        UserService userService, CounterService counterService, ExtensionGetter extensionGetter,
-        SystemConfigurableEnvironmentFetcher environmentFetcher) {
+    public CommentServiceImpl(RoleService roleService,
+                            ReactiveExtensionClient client,
+                            UserService userService,
+                            CounterService counterService,
+                            ExtensionGetter extensionGetter,
+                            SystemConfigurableEnvironmentFetcher environmentFetcher,
+                            RedisMessagePublisher redisMessagePublisher) {
         super(roleService, client, userService, counterService);
         this.extensionGetter = extensionGetter;
         this.environmentFetcher = environmentFetcher;
+        this.redisMessagePublisher = redisMessagePublisher;
     }
 
     @Override
+    @Cacheable(value = "comments-list",
+        key = "{#query?.keyword, #query?.ownerKind, #query?.ownerName, #query?.page, #query?.size, #query?.sort}")
     public Mono<ListResult<ListedComment>> listComment(CommentQuery commentQuery) {
         return this.client.listBy(Comment.class, commentQuery.toListOptions(),
                 commentQuery.toPageRequest())
@@ -63,10 +69,12 @@ public class CommentServiceImpl extends AbstractCommentService implements Commen
                 .map(list -> new ListResult<>(comments.getPage(), comments.getSize(),
                     comments.getTotal(), list)
                 )
-            );
+            )
+            .doOnNext(result -> log.debug("Listed {} comments", result.getTotal()));
     }
 
     @Override
+    @CacheEvict(value = {"comments-list"}, allEntries = true)
     public Mono<Comment> create(Comment comment) {
         return environmentFetcher.fetchComment()
             .flatMap(commentSetting -> {
@@ -102,45 +110,67 @@ public class CommentServiceImpl extends AbstractCommentService implements Commen
                 comment.getSpec().setHidden(false);
                 return Mono.just(comment);
             })
-            .flatMap(populatedComment -> Mono.when(populateOwner(populatedComment),
-                    populateApproveState(populatedComment))
-                .thenReturn(populatedComment)
-            )
-            .flatMap(client::create);
+            .flatMap(this::initializeComment)
+            .flatMap(client::<Comment>create)
+            .doOnSuccess(savedComment -> {
+                try {
+                    redisMessagePublisher.publishCacheInvalidation(
+                        new String[]{"comments-list"},
+                        null,
+                        true
+                    );
+                    log.debug("Published cache invalidation for new comment");
+                } catch (Exception e) {
+                    log.error("Failed to publish cache invalidation", e);
+                }
+            });
     }
 
-    private Mono<Void> populateApproveState(Comment comment) {
-        return hasCommentManagePermission()
-            .filter(Boolean::booleanValue)
-            .doOnNext(hasPermission -> {
-                comment.getSpec().setApproved(true);
-                comment.getSpec().setApprovedTime(Instant.now());
-            })
-            .then();
-    }
-
-    Mono<Void> populateOwner(Comment comment) {
-        if (comment.getSpec().getOwner() != null) {
-            return Mono.empty();
-        }
+    private Mono<Comment> initializeComment(Comment comment) {
         return fetchCurrentUser()
-            .switchIfEmpty(Mono.error(new IllegalStateException("The owner must not be null.")))
             .map(this::toCommentOwner)
             .doOnNext(owner -> comment.getSpec().setOwner(owner))
-            .then();
+            .then(hasCommentManagePermission())
+            .doOnNext(hasPermission -> {
+                if(hasPermission) {
+                    comment.getSpec().setApproved(true);
+                    comment.getSpec().setApprovedTime(Instant.now());
+                }
+            })
+            .thenReturn(comment);
     }
 
     @Override
+    @CacheEvict(value = {"comments-list"}, allEntries = true) 
     public Mono<Void> removeBySubject(@NonNull Ref subjectRef) {
         Assert.notNull(subjectRef, "The subjectRef must not be null.");
-        return cleanupComments(subjectRef, 200);
+        return cleanupComments(subjectRef, 200)
+            .doFinally(signalType -> {
+                try {
+                    redisMessagePublisher.publishCacheInvalidation(
+                        new String[]{"comments-list"},
+                        null,
+                        true
+                    );
+                    log.debug("Published cache invalidation after removing comments");
+                } catch (Exception e) {
+                    log.error("Failed to publish cache invalidation", e);
+                }
+            });
+    }
+
+    private Mono<ListResult<Comment>> listCommentsByRef(Ref subjectRef, PageRequest pageRequest) {
+        var listOptions = new ListOptions();
+        listOptions.setFieldSelector(FieldSelector.of(
+            and(equal("spec.subjectRef", Comment.toSubjectRefKey(subjectRef)),
+                isNull("metadata.deletionTimestamp"))
+        ));
+        return client.listBy(Comment.class, listOptions, pageRequest);
     }
 
     private Mono<Void> cleanupComments(Ref subjectRef, int batchSize) {
-        // ascending order by creation time and name
         final var pageRequest = PageRequestImpl.of(1, batchSize,
             Sort.by("metadata.creationTimestamp", "metadata.name"));
-        // forever loop first page until no more to delete
         return listCommentsByRef(subjectRef, pageRequest)
             .flatMap(page -> Flux.fromIterable(page.getItems())
                 .flatMap(this::deleteWithRetry)
@@ -162,15 +192,6 @@ public class CommentServiceImpl extends AbstractCommentService implements Commen
                 .filter(OptimisticLockingFailureException.class::isInstance));
     }
 
-    Mono<ListResult<Comment>> listCommentsByRef(Ref subjectRef, PageRequest pageRequest) {
-        var listOptions = new ListOptions();
-        listOptions.setFieldSelector(FieldSelector.of(
-            and(equal("spec.subjectRef", Comment.toSubjectRefKey(subjectRef)),
-                isNull("metadata.deletionTimestamp"))
-        ));
-        return client.listBy(Comment.class, listOptions, pageRequest);
-    }
-
     private boolean checkCommentOwner(Comment comment, Boolean onlySystemUser) {
         Comment.CommentOwner owner = comment.getSpec().getOwner();
         if (Boolean.TRUE.equals(onlySystemUser)) {
@@ -181,7 +202,6 @@ public class CommentServiceImpl extends AbstractCommentService implements Commen
 
     private Mono<ListedComment> toListedComment(Comment comment) {
         var builder = ListedComment.builder().comment(comment);
-        // not empty
         var ownerInfoMono = getOwnerInfo(comment.getSpec().getOwner())
             .doOnNext(builder::owner);
         var subjectMono = getCommentSubject(comment.getSpec().getSubjectRef())
@@ -192,8 +212,7 @@ public class CommentServiceImpl extends AbstractCommentService implements Commen
             .then(Mono.fromSupplier(builder::build));
     }
 
-    @SuppressWarnings("unchecked")
-    Mono<Extension> getCommentSubject(Ref ref) {
+    private Mono<Extension> getCommentSubject(Ref ref) {
         return extensionGetter.getExtensions(CommentSubject.class)
             .filter(subject -> subject.supports(ref))
             .next()

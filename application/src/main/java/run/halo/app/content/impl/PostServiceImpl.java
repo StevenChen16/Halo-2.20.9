@@ -45,6 +45,9 @@ import run.halo.app.extension.Ref;
 import run.halo.app.extension.router.selector.FieldSelector;
 import run.halo.app.infra.Condition;
 import run.halo.app.infra.ConditionStatus;
+import run.halo.app.infra.cache.RedisMessagePublisher;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 
 /**
  * A default implementation of {@link PostService}.
@@ -52,38 +55,99 @@ import run.halo.app.infra.ConditionStatus;
  * @author guqing
  * @since 2.0.0
  */
-@Slf4j
-@Component
-public class PostServiceImpl extends AbstractContentService implements PostService {
-    private final ReactiveExtensionClient client;
-    private final CounterService counterService;
-    private final UserService userService;
-    private final CategoryService categoryService;
 
-    public PostServiceImpl(ReactiveExtensionClient client, CounterService counterService,
-        UserService userService, CategoryService categoryService) {
-        super(client);
-        this.client = client;
-        this.counterService = counterService;
-        this.userService = userService;
-        this.categoryService = categoryService;
+ @Slf4j
+ @Component
+ public class PostServiceImpl extends AbstractContentService implements PostService {
+     private final ReactiveExtensionClient client;
+     private final CounterService counterService;
+     private final UserService userService;
+     private final CategoryService categoryService;
+     private final RedisMessagePublisher redisMessagePublisher;
+ 
+     public PostServiceImpl(ReactiveExtensionClient client,
+                          CounterService counterService,
+                          UserService userService, 
+                          CategoryService categoryService,
+                          RedisMessagePublisher redisMessagePublisher) {
+         super(client);
+         this.client = client;
+         this.counterService = counterService;
+         this.userService = userService;
+         this.categoryService = categoryService;
+         this.redisMessagePublisher = redisMessagePublisher;
+     }
+     
+     @Override
+     @Cacheable(value = "posts-list", 
+         key = "T(String).format('list:%s:%d:%d:%s', " + 
+               "#query.categoryWithChildren, #query.page, #query.size, #query.keyword)",
+         unless = "#result == null")
+     public Mono<ListResult<ListedPost>> listPost(PostQuery query) {
+         return buildListOptions(query)
+             .flatMap(listOptions ->
+                 client.listBy(Post.class, listOptions, query.toPageRequest())
+             )
+             .flatMap(listResult -> Flux.fromStream(listResult.get())
+                 .map(this::getListedPost)
+                 .flatMapSequential(Function.identity())
+                 .collectList()
+                 .map(listedPosts -> new ListResult<>(listResult.getPage(), listResult.getSize(),
+                     listResult.getTotal(), listedPosts)
+                 )
+                 .defaultIfEmpty(ListResult.emptyResult())
+             )
+             .doOnSuccess(result -> log.debug("Listed {} posts", 
+                 result.getTotal()));
+     }
+ 
+     @Override
+     @CacheEvict(value = {"posts", "posts-list", "post-contents"}, allEntries = true)
+     public Mono<Post> create(Post post) {
+         var postRequest = new PostRequest(post, null);  // 使用record构造函数
+         return draftPost(postRequest)
+             .doOnSuccess(p -> {
+                 try {
+                     redisMessagePublisher.publishCacheInvalidation(
+                         new String[]{"posts", "posts-list", "post-contents"},
+                         null,
+                         true
+                     );
+                     log.debug("Published cache invalidation for new post");
+                 } catch (Exception e) {
+                     log.error("Failed to publish cache invalidation", e);
+                 }
+             });
+     }
+
+    @Override
+    @CacheEvict(value = "posts-list", allEntries = true)
+    public void invalidatePostLists() {
+        try {
+            redisMessagePublisher.publishCacheInvalidation(
+                new String[]{"posts-list"},
+                null,
+                true
+            );
+            log.debug("Invalidated post lists cache");
+        } catch (Exception e) {
+            log.error("Failed to invalidate post lists cache", e);
+        }
     }
 
     @Override
-    public Mono<ListResult<ListedPost>> listPost(PostQuery query) {
-        return buildListOptions(query)
-            .flatMap(listOptions ->
-                client.listBy(Post.class, listOptions, query.toPageRequest())
-            )
-            .flatMap(listResult -> Flux.fromStream(listResult.get())
-                .map(this::getListedPost)
-                .flatMapSequential(Function.identity())
-                .collectList()
-                .map(listedPosts -> new ListResult<>(listResult.getPage(), listResult.getSize(),
-                    listResult.getTotal(), listedPosts)
-                )
-                .defaultIfEmpty(ListResult.emptyResult())
+    @CacheEvict(value = "posts", key = "'head:' + #postName")
+    public void invalidatePostHead(String postName) {
+        try {
+            redisMessagePublisher.publishCacheInvalidation(
+                new String[]{"posts"},
+                "'head:' + " + postName,
+                false
             );
+            log.debug("Invalidated post head cache for post: {}", postName);
+        } catch (Exception e) {
+            log.error("Failed to invalidate post head cache", e);
+        }
     }
 
     Mono<ListOptions> buildListOptions(PostQuery query) {

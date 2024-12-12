@@ -6,7 +6,7 @@ import org.springframework.cache.annotation.CacheEvict;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import run.halo.app.core.extension.content.Category;
-import run.halo.app.infra.config.RedisMessagePublisher;
+import run.halo.app.infra.cache.RedisMessagePublisher;
 import org.springframework.beans.factory.annotation.Autowired;
 
 public interface CategoryService {
