@@ -45,6 +45,8 @@ import run.halo.app.core.extension.content.Tag;
 import run.halo.app.extension.MetadataOperator;
 import run.halo.app.infra.utils.JsonSerializer.TagVoSerDe;
 import run.halo.app.theme.finders.vo.TagVo;
+import run.halo.app.infra.cache.RedisMessagePublisher;
+import run.halo.app.infra.cache.RedisMessageSubscriber;
 
 @EnableCaching
 @Configuration(proxyBeanMethods = false)
@@ -167,40 +169,41 @@ public class HaloConfiguration {
         };
     }
     
-    @Bean
-    public RedisCacheManager cacheManager(RedisConnectionFactory redisConnectionFactory) {
-        GenericJackson2JsonRedisSerializer serializer = redisSerializer();
+    @EnableCaching
+    @Configuration(proxyBeanMethods = false)
+    public class HaloCacheConfiguration {
+        @Value("${halo.cache.redis.key-prefix:halo:}")
+        private String cachePrefix;
         
-        RedisCacheConfiguration defaultConfig = RedisCacheConfiguration.defaultCacheConfig()
-            .serializeValuesWith(
-                RedisSerializationContext.SerializationPair.fromSerializer(serializer)
-            )
-            .serializeKeysWith(
-                RedisSerializationContext.SerializationPair.fromSerializer(
-                    new StringRedisSerializer()
+        @Bean
+        public RedisCacheManager cacheManager(RedisConnectionFactory redisConnectionFactory) {
+            RedisCacheConfiguration defaultConfig = RedisCacheConfiguration.defaultCacheConfig()
+                .serializeValuesWith(
+                    RedisSerializationContext.SerializationPair.fromSerializer(redisSerializer())
                 )
-            )
-            .entryTtl(Duration.ofHours(1))
-            .computePrefixWith(cacheName -> "halo:" + cacheName + ":");
-    
-        Map<String, RedisCacheConfiguration> cacheConfigurations = new HashMap<>();
-        
-        cacheConfigurations.put("posts-list", 
-            defaultConfig.entryTtl(Duration.ofMinutes(30)));
-        cacheConfigurations.put("posts", 
-            defaultConfig.entryTtl(Duration.ofHours(2)));
-        cacheConfigurations.put("post-contents", 
-            defaultConfig.entryTtl(Duration.ofHours(2)));
-        cacheConfigurations.put("post-snapshots", 
-            defaultConfig.entryTtl(Duration.ofHours(2)));
-        cacheConfigurations.put("comments-list", 
-            defaultConfig.entryTtl(Duration.ofMinutes(30)));
-    
-        return RedisCacheManager.builder(redisConnectionFactory)
-            .cacheDefaults(defaultConfig)
-            .withInitialCacheConfigurations(cacheConfigurations)
-            .transactionAware()
-            .build();
+                .serializeKeysWith(
+                    RedisSerializationContext.SerializationPair.fromSerializer(
+                        new StringRedisSerializer()
+                    )
+                )
+                .entryTtl(Duration.ofHours(1))
+                .computePrefixWith(cacheName -> cachePrefix + cacheName + ":");
+
+            // 特定缓存的配置
+            Map<String, RedisCacheConfiguration> cacheConfigurations = new HashMap<>();
+            cacheConfigurations.put("posts-list", 
+                defaultConfig.entryTtl(Duration.ofMinutes(30)));
+            cacheConfigurations.put("posts",
+                defaultConfig.entryTtl(Duration.ofHours(2)));
+            cacheConfigurations.put("post-contents",
+                defaultConfig.entryTtl(Duration.ofHours(2)));
+            
+            return RedisCacheManager.builder(redisConnectionFactory)
+                .cacheDefaults(defaultConfig)
+                .withInitialCacheConfigurations(cacheConfigurations)
+                .transactionAware()
+                .build();
+        }
     }
     
     @Bean
@@ -221,10 +224,23 @@ public class HaloConfiguration {
     }
 
     @Bean
-    public RedisMessageListenerContainer redisMessageListenerContainer(RedisConnectionFactory redisConnectionFactory) {
+    public RedisMessageListenerContainer redisMessageListenerContainer(
+        RedisConnectionFactory redisConnectionFactory,
+        RedisMessageSubscriber messageSubscriber) {
         RedisMessageListenerContainer container = new RedisMessageListenerContainer();
         container.setConnectionFactory(redisConnectionFactory);
+        container.addMessageListener(messageSubscriber, new ChannelTopic("halo:cache:invalidation"));
         return container;
+    }
+
+    @Bean
+    public RedisMessageSubscriber redisMessageSubscriber(RedisCacheManager cacheManager) {
+        return new RedisMessageSubscriber(cacheManager);
+    }
+
+    @Bean
+    public RedisMessagePublisher redisMessagePublisher(RedisTemplate<String, Object> redisTemplate) {
+        return new RedisMessagePublisher(redisTemplate);
     }
 
     @Bean
